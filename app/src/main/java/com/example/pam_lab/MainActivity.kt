@@ -1,4 +1,4 @@
-package com.example.pai_lab
+package com.example.pam_lab
 
 import android.net.Uri
 import android.os.Bundle
@@ -35,8 +35,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.pai_lab.ui.theme.Lab2Theme
-import com.example.pai_lab.viewmodel.RouteViewModel
+import com.example.pam_lab.ui.theme.Lab2Theme
+import com.example.pam_lab.viewmodel.RouteViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

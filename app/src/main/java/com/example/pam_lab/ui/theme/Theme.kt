@@ -1,4 +1,4 @@
-package com.example.pai_lab.ui.theme
+package com.example.pam_lab.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

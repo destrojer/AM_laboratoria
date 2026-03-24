@@ -1,9 +1,9 @@
-package com.example.pai_lab.viewmodel
+package com.example.pam_lab.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pai_lab.api_access.OsmElement
-import com.example.pai_lab.api_access.RouteApiService
+import com.example.pam_lab.api_access.OsmElement
+import com.example.pam_lab.api_access.RouteApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

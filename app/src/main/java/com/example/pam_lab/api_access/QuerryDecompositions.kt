@@ -1,4 +1,4 @@
-package com.example.pai_lab.api_access
+package com.example.pam_lab.api_access
 
 data class OverpassResponse(
     val elements: List<OsmElement>

@@ -1,4 +1,4 @@
-package com.example.pai_lab
+package com.example.pam_lab
 
 import org.junit.Test
 

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.pai_lab"
+    namespace = "com.example.pam_lab"
     compileSdk = 36
 
     defaultConfig {
