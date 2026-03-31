@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation("androidx.compose.material3:material3-window-size-class")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
