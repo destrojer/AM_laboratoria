@@ -121,7 +121,7 @@ fun MainScreenTablet(routeViewModel: RouteViewModel) {
                             .padding(end = 16.dp)
                     ) {
                         Text(
-                            text = "Panel Zarządzania Trasami",
+                            text = "Panel Zarzadzania Trasami",
                             modifier = Modifier.weight(1f)
                         )
                         Button(
