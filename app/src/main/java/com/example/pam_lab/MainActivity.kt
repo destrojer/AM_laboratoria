@@ -19,9 +19,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -33,9 +35,6 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -47,9 +46,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.pam_lab.api_access.OsmElement
 import com.example.pam_lab.ui.theme.Lab2Theme
 import com.example.pam_lab.viewmodel.RouteViewModel
+import com.example.pam_lab.viewmodel.TimerViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,24 +67,25 @@ class MainActivity : ComponentActivity() {
 fun Main() {
     val navController = rememberNavController()
     val routeViewModel: RouteViewModel = viewModel()
+    val timerViewModel: TimerViewModel = viewModel()
     val activity: Activity = LocalActivity.current as Activity
     NavHost(navController = navController, startDestination = "viewType") {
         composable("viewType") {
             val windowSizeClass = calculateWindowSizeClass(activity = activity)
             when (windowSizeClass.widthSizeClass) {
                 WindowWidthSizeClass.Compact -> {
-                    StartScreenMobile(navController = navController, routeViewModel = routeViewModel)
+                    StartScreenMobile(navController = navController, routeViewModel = routeViewModel, timerViewModel = timerViewModel)
                 }
                 else -> {
-                    MainScreenTablet(routeViewModel = routeViewModel)
+                    MainScreenTablet(routeViewModel = routeViewModel, timerViewModel = timerViewModel)
                 }
             }
         }
         composable("start") {
-            StartScreenMobile(navController = navController, routeViewModel = routeViewModel)
+            StartScreenMobile(navController = navController, routeViewModel = routeViewModel, timerViewModel = timerViewModel)
         }
         composable("main") {
-            MainScreen(navController = navController, routeViewModel = routeViewModel)
+            MainScreen(navController = navController, routeViewModel = routeViewModel, timerViewModel = timerViewModel)
         }
         composable("detail/{name}/{description}",
             arguments = listOf(
@@ -98,18 +98,17 @@ fun Main() {
             ) { backstackEntry ->
             val name = backstackEntry.arguments?.getString("name")
             val description = backstackEntry.arguments?.getString("description")
-            DetailScreen(navController = navController, name = name, description=description)
+            DetailScreen(navController = navController, name = name, description = description, timerViewModel = timerViewModel)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenTablet(routeViewModel: RouteViewModel) {
+fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewModel) {
     val routes by routeViewModel.routes.collectAsState()
     val isBike by routeViewModel.bool.collectAsState()
-    
-    var selectedRoute by remember { mutableStateOf<OsmElement?>(null) } //do naprawienia na viewModel bo nie dziala przy obrocie
+    val selectedRoute by routeViewModel.selectedRoute.collectAsState()
 
     Scaffold(
         topBar = {
@@ -125,14 +124,14 @@ fun MainScreenTablet(routeViewModel: RouteViewModel) {
                             modifier = Modifier.weight(1f)
                         )
                         Button(
-                            onClick = {routeViewModel.setRoute(false)},
+                            onClick = { routeViewModel.setRoute(false) },
                             enabled = isBike || routes.isEmpty(),
                             modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
                             Text(text = "Pieszo")
                         }
                         Button(
-                            onClick = {routeViewModel.setRoute(true)},
+                            onClick = { routeViewModel.setRoute(true) },
                             enabled = !isBike || routes.isEmpty(),
                             modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
@@ -159,7 +158,7 @@ fun MainScreenTablet(routeViewModel: RouteViewModel) {
                         text = item.name,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedRoute = item }
+                            .clickable { routeViewModel.selectRoute(item) }
                             .padding(16.dp)
                     )
                 }
@@ -175,7 +174,10 @@ fun MainScreenTablet(routeViewModel: RouteViewModel) {
                     Text(text = selectedRoute!!.name, fontSize = 28.sp)
                     Text(text = selectedRoute!!.description, modifier = Modifier.padding(top = 16.dp))
                 } else {
-                    Text(text = "Wybierz trase z listy, aby zobaczyc szczegoly.", modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Text(
+                        text = "Wybierz trasę z listy, aby zobaczyć szczegóły.",
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 }
             }
         }
@@ -184,7 +186,7 @@ fun MainScreenTablet(routeViewModel: RouteViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartScreenMobile(navController: NavController, routeViewModel: RouteViewModel) {
+fun StartScreenMobile(navController: NavController, routeViewModel: RouteViewModel, timerViewModel: TimerViewModel) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -216,7 +218,8 @@ fun StartScreenMobile(navController: NavController, routeViewModel: RouteViewMod
                 Button(
                     onClick = {
                         routeViewModel.setRoute(false)
-                        navController.navigate("main")},
+                        navController.navigate("main")
+                    },
                     modifier = Modifier.padding(vertical = 16.dp)
                 ) {
                     Text(text = "Pieszo", fontSize = 42.sp)
@@ -224,7 +227,8 @@ fun StartScreenMobile(navController: NavController, routeViewModel: RouteViewMod
                 Button(
                     onClick = {
                         routeViewModel.setRoute(true)
-                        navController.navigate("main")},
+                        navController.navigate("main")
+                    },
                     modifier = Modifier.padding(vertical = 16.dp)
                 ) {
                     Text(text = "Rowerem", fontSize = 42.sp)
@@ -237,7 +241,7 @@ fun StartScreenMobile(navController: NavController, routeViewModel: RouteViewMod
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(navController: NavController, routeViewModel: RouteViewModel = viewModel()) {
+fun MainScreen(navController: NavController, routeViewModel: RouteViewModel = viewModel(), timerViewModel: TimerViewModel) {
     val isBike by routeViewModel.bool.collectAsState()
     val routes by routeViewModel.routes.collectAsState()
     Scaffold(
@@ -250,7 +254,7 @@ fun MainScreen(navController: NavController, routeViewModel: RouteViewModel = vi
                             .padding(end = 16.dp)
                     ) {
                         Button(
-                            onClick = {routeViewModel.setRoute(false)},
+                            onClick = { routeViewModel.setRoute(false) },
                             enabled = isBike || routes.isEmpty(),
                             modifier = Modifier
                                 .weight(1f)
@@ -259,7 +263,7 @@ fun MainScreen(navController: NavController, routeViewModel: RouteViewModel = vi
                             Text(text = "Pieszo")
                         }
                         Button(
-                            onClick = {routeViewModel.setRoute(true)},
+                            onClick = { routeViewModel.setRoute(true) },
                             enabled = !isBike || routes.isEmpty(),
                             modifier = Modifier
                                 .weight(1f)
@@ -280,25 +284,29 @@ fun MainScreen(navController: NavController, routeViewModel: RouteViewModel = vi
             contentPadding = innerPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-        items(routes) { item ->
-            Text(
-            text = item.name,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    val encodedName = Uri.encode(item.name)
-                    val encodedDescription = Uri.encode(item.description)
-                    navController.navigate("detail/$encodedName/$encodedDescription")
-                }
-                .padding(16.dp)
-            )}
+            items(routes) { item ->
+                Text(
+                    text = item.name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val encodedName = Uri.encode(item.name)
+                            val encodedDescription = Uri.encode(item.description)
+                            navController.navigate("detail/$encodedName/$encodedDescription")
+                        }
+                        .padding(16.dp)
+                )
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(navController: NavController, name: String?, description: String?) {
+fun DetailScreen(navController: NavController, name: String?, description: String?, timerViewModel: TimerViewModel) {
+    val timerState by timerViewModel.timerState.collectAsState()
+    val timerRunning by timerViewModel.running.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -312,9 +320,20 @@ fun DetailScreen(navController: NavController, name: String?, description: Strin
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    timerViewModel.toggleTimer(name)
+                }
+            ) {
+                Icon(Icons.Default.Timer, contentDescription = "Timer")
+                if (timerRunning) {
+                    Text(text = timerViewModel.displayTime())
+                }
+            }
         }
-    ) {
-        innerPadding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -332,6 +351,5 @@ fun DetailScreen(navController: NavController, name: String?, description: Strin
                     .padding(vertical = 8.dp, horizontal = 16.dp)
             )
         }
-
     }
 }

@@ -28,6 +28,8 @@ class RouteViewModel : ViewModel() {
     private val _routes = MutableStateFlow<List<OsmElement>>(emptyList())
     val routes: StateFlow<List<OsmElement>> = _routes.asStateFlow()
 
+    private val _selectedRoute = MutableStateFlow<OsmElement?>(null)
+    val selectedRoute: StateFlow<OsmElement?> = _selectedRoute.asStateFlow()
 
 
 //    False is for foot, true is for bike
@@ -41,6 +43,10 @@ class RouteViewModel : ViewModel() {
             (!_bool.value && _routeFoot.isEmpty()) -> fetchRoutes(newBool)
             (!_bool.value && _routeFoot.isNotEmpty()) -> _routes.value = _routeFoot
         }
+    }
+
+    fun selectRoute(route: OsmElement?) {
+        _selectedRoute.value = route
     }
 
 
