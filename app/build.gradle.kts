@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp") version "2.3.6"
 }
 
 android {
@@ -51,6 +52,9 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation("androidx.compose.material3:material3-window-size-class")
+    implementation("androidx.room:room-runtime:2.8.4")
+    implementation("androidx.room:room-ktx:2.8.4")
+    ksp("androidx.room:room-compiler:2.8.4")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
