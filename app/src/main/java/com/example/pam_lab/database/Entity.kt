@@ -6,10 +6,10 @@ import androidx.room.PrimaryKey
 @Entity
 data class Route(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val name: String,
-    val description: String,
-    val type: String,
-    val difficulty: Int,
-    val length: Double,
-    val duration: Int,
+    val name: String, //nazwa moze miec wiecej niz jedno slowo
+    val description: String, //opis trasy
+    val type: String, //rowerowa czy piesza
+    val difficulty: Int, //trudnosc w skali od 1 do 5 okreslone potem jako gwiazdki
+    val length: Double, // dlugosc trasy w kilometrach lub metrach
+    val duration: Int, // typowy lub przewidywany czas przejscia trasy
     )

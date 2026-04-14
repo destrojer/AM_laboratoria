@@ -6,14 +6,21 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RouteDao {
     @Query("SELECT * FROM route")
-    fun getAll(): LiveData<List<Route>>
+    fun getAllFlow(): Flow<List<Route>>
+
+    @Query("SELECT COUNT(*) FROM route")
+    suspend fun getCount(): Int
 
     @Insert
     suspend fun insertRoute(route: Route)
+
+    @Insert
+    suspend fun insertRoutes(routes: List<Route>)
 
     @Update
     suspend fun updateRoute(route: Route)
@@ -21,5 +28,3 @@ interface RouteDao {
     @Delete
     suspend fun deleteRoute(route: Route)
 }
-
-

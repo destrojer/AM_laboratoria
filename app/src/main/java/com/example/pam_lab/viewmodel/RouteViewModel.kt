@@ -1,84 +1,107 @@
 package com.example.pam_lab.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pam_lab.api_access.OsmElement
-import com.example.pam_lab.api_access.RouteApiService
+import com.example.pam_lab.database.AppDatabase
+import com.example.pam_lab.database.Route
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 
-class RouteViewModel : ViewModel() {
+class RouteViewModel(application: Application) : AndroidViewModel(application) {
 
-//    private val _routeOne = listOf("Sciezka Rowerowa 1", "Sciezka Rowerowa 2", "Sciezka Rowerowa 3")
-//    private val _routeTwo = listOf("Sciezka Piesza 1", "Sciezka Piesza 2", "Sciezka Piesza 3")
+    private val routeDao = AppDatabase.getInstance(application).routeDao()
 
-    private var _routeBike = emptyList<OsmElement>()
-    private var _routeFoot = emptyList<OsmElement>()
+    // Stan wyboru: null = brak, false = piesza, true = rowerowa
+    private val _isBike = MutableStateFlow<Boolean?>(null)
+    val bool: StateFlow<Boolean?> = _isBike.asStateFlow()
 
-//    State flow values
-    private val _bool = MutableStateFlow(false)
-    val bool: StateFlow<Boolean> = _bool.asStateFlow()
+    private val allRoutes = routeDao.getAllFlow()
 
-//    private val _route = MutableStateFlow(_routeTwo)
-//    val route: StateFlow<List<String>> = _route.asStateFlow()
-    private val _routes = MutableStateFlow<List<OsmElement>>(emptyList())
-    val routes: StateFlow<List<OsmElement>> = _routes.asStateFlow()
-
-    private val _selectedRoute = MutableStateFlow<OsmElement?>(null)
-    val selectedRoute: StateFlow<OsmElement?> = _selectedRoute.asStateFlow()
-
-
-//    False is for foot, true is for bike
-    fun setRoute(newBool: Boolean){
-        _bool.value = newBool
-
-//        _route.value = if (newBool) _routeOne else _routeTwo
-        when{
-            (_bool.value && _routeBike.isEmpty()) -> fetchRoutes(newBool)
-            (_bool.value && _routeBike.isNotEmpty()) -> _routes.value = _routeBike
-            (!_bool.value && _routeFoot.isEmpty()) -> fetchRoutes(newBool)
-            (!_bool.value && _routeFoot.isNotEmpty()) -> _routes.value = _routeFoot
+    // Filtrowanie tras na podstawie wyboru
+    val routes: StateFlow<List<Route>> = combine(allRoutes, _isBike) { routes, isBike ->
+        if (isBike == null) emptyList()
+        else {
+            val type = if (isBike) "rowerowa" else "piesza"
+            routes.filter { it.type == type }
         }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    private val _selectedRoute = MutableStateFlow<Route?>(null)
+    val selectedRoute: StateFlow<Route?> = _selectedRoute.asStateFlow()
+
+    init {
+        seedDatabase()
     }
 
-    fun selectRoute(route: OsmElement?) {
-        _selectedRoute.value = route
-    }
-
-
-//    Api code
-    private val retrofit = Retrofit.Builder()
-    .baseUrl("https://overpass-api.de/api/")
-    .addConverterFactory(GsonConverterFactory.create())
-    .build()
-
-    private val apiService = retrofit.create(RouteApiService::class.java)
-
-    fun fetchRoutes(isBike: Boolean) {
-        val type = if (isBike) "bicycle" else "hiking"
-
-        val query = """
-            [out:json];
-            relation["route"="$type"]["name"](49.20,19.80,49.30,20.10);
-            out tags;
-        """.trimIndent()
-
+    private fun seedDatabase() {
         viewModelScope.launch {
-            try {
-                val response = apiService.getTouristRoutes(query)
-                _routes.value = response.elements
-                if (isBike) {
-                    _routeBike = _routes.value
-                } else {
-                    _routeFoot = _routes.value
-                }
-            } catch (e: Exception) {
-                _routes.value = emptyList()
+            if (routeDao.getCount() == 0) {
+                val initialRoutes = listOf(
+                    // 20 Tras Pieszych
+                    Route(name = "Szlak na Morskie Oko", description = "Asfaltowa trasa z Palenicy Białczańskiej, dostępna dla każdego. Prowadzi do najsłynniejszego jeziora w Tatrach.", type = "piesza", difficulty = 1, length = 9.0, duration = 150),
+                    Route(name = "Szlak na Giewont", description = "Klasyk tatrzański z Kuźnic przez Halę Kondratową. Wymaga kondycji i braku lęku wysokości przy kopule.", type = "piesza", difficulty = 4, length = 6.0, duration = 210),
+                    Route(name = "Szlak na Rysy", description = "Najwyższy szczyt Polski. Trudna, wysokogórska wyprawa znad Morskiego Oka. Tylko dla doświadczonych.", type = "piesza", difficulty = 5, length = 5.0, duration = 240),
+                    Route(name = "Szlak do Doliny Pięciu Stawów", description = "Piękna trasa doliną Roztoki. Nagrodą są niesamowite widoki na kaskadę Siklawa i jeziora.", type = "piesza", difficulty = 3, length = 8.0, duration = 150),
+                    Route(name = "Szlak na Kasprowy Wierch", description = "Podejście z Kuźnic przez Myślenickie Turnie. Alternatywa dla kolejki linowej z pięknymi panoramami.", type = "piesza", difficulty = 3, length = 7.0, duration = 180),
+                    Route(name = "Szlak na Trzy Korony", description = "Pieniński klasyk ze Sromowiec Niżnych. Widok z platformy na przełom Dunajca zapiera dech.", type = "piesza", difficulty = 2, length = 4.0, duration = 120),
+                    Route(name = "Szlak na Sokolicę", description = "Krótki, ale stromy szlak z Krościenka nad Dunajcem do słynnej reliktowej sosny.", type = "piesza", difficulty = 2, length = 3.0, duration = 90),
+                    Route(name = "Szlak na Tarnicę", description = "Najwyższy szczyt Bieszczadów z Wołosatego. Krótka, ale intensywna wędrówka na dach Bieszczad.", type = "piesza", difficulty = 3, length = 4.5, duration = 120),
+                    Route(name = "Szlak na Połoninę Wetlińską", description = "Spacer z Przełęczy Wyżnej do schroniska Chatka Puchatka. Kultowe miejsce w Bieszczadach.", type = "piesza", difficulty = 2, length = 3.0, duration = 60),
+                    Route(name = "Szlak na Śnieżkę", description = "Z Karpacza przez kocioł Łomniczki lub Śląski Dom. Najwyższy i najbardziej wietrzny szczyt Karkonoszy.", type = "piesza", difficulty = 3, length = 6.0, duration = 150),
+                    Route(name = "Szlak na Szczeliniec Wielki", description = "Góry Stołowe i labirynty skalne. Trasa po schodach z Karłowa, idealna dla rodzin.", type = "piesza", difficulty = 1, length = 2.0, duration = 60),
+                    Route(name = "Szlak Błędne Skały", description = "Niesamowity skalny labirynt na płaskowyżu Skalniaka. Trasa łatwa i bardzo efektowna.", type = "piesza", difficulty = 1, length = 1.0, duration = 45),
+                    Route(name = "Szlak na Babią Górę", description = "Królowa Beskidów. Start z Przełęczy Krowiarki. Pogoda bywa tu bardzo kapryśna.", type = "piesza", difficulty = 4, length = 5.0, duration = 150),
+                    Route(name = "Szlak na Turbacz", description = "Najwyższy punkt Gorców. Z Nowego Targu Kowańca łagodnym podejściem do dużego schroniska.", type = "piesza", difficulty = 2, length = 10.0, duration = 210),
+                    Route(name = "Szlak na Skrzyczne", description = "Najwyższy szczyt Beskidu Śląskiego. Podejście ze Szczyrku przez Halę Jaworzynę.", type = "piesza", difficulty = 3, length = 5.0, duration = 150),
+                    Route(name = "Szlak na Baranią Górę", description = "Wędrówka do źródeł Wisły z Wisły Czarne przez dolinę Białej Wisełki.", type = "piesza", difficulty = 3, length = 8.0, duration = 180),
+                    Route(name = "Pętla przez Czerwone Wierchy", description = "Długa, grzbietowa trasa z Kuźnic. Panoramiczne widoki na Tatry Wysokie i Zachodnie.", type = "piesza", difficulty = 4, length = 15.0, duration = 420),
+                    Route(name = "Szlak Doliną Chochołowską", description = "Najdłuższa dolina w Tatrach. Idealna na wiosenny spacer wśród krokusów.", type = "piesza", difficulty = 1, length = 7.5, duration = 120),
+                    Route(name = "Szlak Doliną Kościeliską", description = "Jedna z najpiękniejszych dolin reglowych z licznymi jaskiniami i wąwozem Kraków.", type = "piesza", difficulty = 1, length = 6.0, duration = 90),
+                    Route(name = "Szlak na Halę Gąsienicową", description = "Z Kuźnic przez Boczań. Kultowe miejsce z widokiem na Kościelec i Granaty.", type = "piesza", difficulty = 2, length = 6.0, duration = 120),
+
+                    // 20 Tras Rowerowych
+                    Route(name = "Velo Dunajec (Czorsztyn - Szczawnica)", description = "Prawdopodobnie najpiękniejsza trasa w Polsce, biegnąca wzdłuż jeziora i przełomu Dunajca.", type = "rowerowa", difficulty = 2, length = 40.0, duration = 180),
+                    Route(name = "Wiślana Trasa Rowerowa (Kraków - Niepołomice)", description = "Płaska i szybka trasa wałami Wisły z widokiem na Opactwo w Tyńcu i Puszczę Niepołomicką.", type = "rowerowa", difficulty = 1, length = 25.0, duration = 90),
+                    Route(name = "Szlak Orlich Gniazd (Olsztyn - Mirów)", description = "Malowniczy odcinek jury krakowsko-częstochowskiej z ruinami średniowiecznych zamków.", type = "rowerowa", difficulty = 4, length = 50.0, duration = 240),
+                    Route(name = "Green Velo (Elbląg - Frombork)", description = "Północny odcinek szlaku nad Zalewem Wiślanym. Wymagające podjazdy na Wysoczyźnie Elbląskiej.", type = "rowerowa", difficulty = 3, length = 35.0, duration = 150),
+                    Route(name = "Green Velo (Białystok i okolice)", description = "Spokojna trasa przez podlaskie wioski i lasy w okolicach stolicy regionu.", type = "rowerowa", difficulty = 2, length = 40.0, duration = 180),
+                    Route(name = "Pętla Tatrzańska", description = "Wymagająca trasa wokół Tatr. Legendarne podjazdy pod Głodówkę i zjazd do Zakopanego.", type = "rowerowa", difficulty = 5, length = 100.0, duration = 360),
+                    Route(name = "Szlak wokół Jeziora Czorsztyńskiego", description = "Velo Czorsztyn to nowoczesna ścieżka z widokami na dwa zamki i góry.", type = "rowerowa", difficulty = 3, length = 40.0, duration = 180),
+                    Route(name = "EuroVelo 10 (Półwysep Helski)", description = "Unikalna trasa wzdłuż zatoki z Władysławowa na sam cypel Helu.", type = "rowerowa", difficulty = 2, length = 35.0, duration = 150),
+                    Route(name = "Kampinoski Szlak Rowerowy", description = "Główny pierścień wokół Puszczy Kampinoskiej. Piaszczyste odcinki wymagają szerokich opon.", type = "rowerowa", difficulty = 4, length = 140.0, duration = 480),
+                    Route(name = "Puszcza Białowieska (Białowieża loop)", description = "Przejazd przez serce ostatniego pierwotnego lasu Europy. Szerokie leśne drogi.", type = "rowerowa", difficulty = 1, length = 30.0, duration = 120),
+                    Route(name = "Szlak Stu Jezior (Okolice Sierakowa)", description = "Piękne krajobrazy Pojezierza Międzychodzko-Sierakowskiego w Wielkopolsce.", type = "rowerowa", difficulty = 3, length = 50.0, duration = 240),
+                    Route(name = "Małopolska Droga św. Jakuba (Velo Metropolis)", description = "Odcinek EuroVelo 4 w Małopolsce, łączący historyczne miasta i miasteczka.", type = "rowerowa", difficulty = 4, length = 70.0, duration = 300),
+                    Route(name = "Szlak Architektury Drewnianej (Tarnów loop)", description = "Trasa prowadząca do zabytkowych kościołów wpisanych na listę UNESCO.", type = "rowerowa", difficulty = 3, length = 40.0, duration = 180),
+                    Route(name = "Trasa Tyniecka (Centrum Krakowa - Tyniec)", description = "Najpopularniejsza ścieżka rekreacyjna w Krakowie, idealna na krótki wypad.", type = "rowerowa", difficulty = 1, length = 12.0, duration = 45),
+                    Route(name = "Odrzańska Droga Rowerowa (Wrocław - Brzeg Dolny)", description = "Wygodna trasa wzdłuż Odry, z dala od ruchu samochodowego.", type = "rowerowa", difficulty = 2, length = 50.0, duration = 180),
+                    Route(name = "Bory Tucholskie (Kaszubska Marszruta)", description = "System świetnych dróg rowerowych w sercu narodowego parku.", type = "rowerowa", difficulty = 2, length = 45.0, duration = 180),
+                    Route(name = "Szlak Latarni Morskich (Wybrzeże Środkowe)", description = "Jazda wzdłuż Bałtyku, łącząca najciekawsze punkty nawigacyjne wybrzeża.", type = "rowerowa", difficulty = 3, length = 80.0, duration = 300),
+                    Route(name = "Szlak Krainy Otwartych Okiennic", description = "Wędrówka rowerowa przez unikalne wioski doliny Narwi: Soce, Puchły, Trześcianka.", type = "rowerowa", difficulty = 1, length = 25.0, duration = 120),
+                    Route(name = "Szlak przez Dolinę Baryczy", description = "Raj dla ornitologów. Płaska trasa wśród Stawów Milickich.", type = "rowerowa", difficulty = 1, length = 40.0, duration = 180),
+                    Route(name = "Roztoczański Szlak Rowerowy (Zwierzyniec - Górecko)", description = "Przejazd przez Roztocze Środkowe, krainę szumów i gęstych borów jodłowych.", type = "rowerowa", difficulty = 3, length = 35.0, duration = 180)
+                )
+                routeDao.insertRoutes(initialRoutes)
             }
         }
+    }
+
+    fun setRoute(newBool: Boolean) {
+        _isBike.value = newBool
+        _selectedRoute.value = null
+    }
+
+    fun selectRoute(route: Route?) {
+        _selectedRoute.value = route
     }
 }

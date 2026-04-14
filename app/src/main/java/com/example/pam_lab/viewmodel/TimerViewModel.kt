@@ -17,18 +17,19 @@ class TimerViewModel: ViewModel() {
     private val _running = MutableStateFlow(false)
     val running: StateFlow<Boolean> = _running.asStateFlow()
 
+    private val _currentRouteName = MutableStateFlow<String?>(null)
+    val currentRouteName: StateFlow<String?> = _currentRouteName.asStateFlow()
+
     private var timerJob: Job? = null
-    private var routeName: String? = null
 
-    fun toggleTimer(routeName: String?) {
-        if (_running.value) {
-            stopTimer()
-        } else {
-            startTimer()
+    fun startTimer(routeName: String?) {
+        if (timerJob?.isActive == true) return
+        
+        // Lock the timer to this route if it's just starting
+        if (_timerState.value == 0) {
+            _currentRouteName.value = routeName
         }
-    }
 
-    fun startTimer() {
         _running.value = true
         timerJob = viewModelScope.launch {
             while (_running.value) {
@@ -38,25 +39,46 @@ class TimerViewModel: ViewModel() {
         }
     }
 
-    fun restartTimer(routeName: String) {
-        this.routeName = routeName
-        _timerState.value = 0
-        this.startTimer()
-    }
-
     fun stopTimer() {
         _running.value = false
         timerJob?.cancel()
+        timerJob = null
     }
 
-    fun checkCorrectRoute(routeName: String): Boolean {
-        return this.routeName == routeName
+    fun toggleTimer(routeName: String?) {
+        if (_running.value) {
+            stopTimer()
+        } else {
+            startTimer(routeName)
+        }
+    }
+
+    fun restartTimer() {
+        stopTimer()
+        _timerState.value = 0
+        _currentRouteName.value = null
+    }
+    
+    fun restartAndStart(routeName: String?) {
+        stopTimer()
+        _timerState.value = 0
+        // We keep the current route name or reset it to the new one
+        _currentRouteName.value = routeName
+        startTimer(routeName)
+    }
+
+    fun isTimerForRoute(routeName: String?): Boolean {
+        return _currentRouteName.value == routeName
+    }
+
+    fun isTimerActive(): Boolean {
+        return _timerState.value > 0 || _running.value
     }
 
     fun displayTime(): String {
-        val h = timerState.value / 3600
-        val m = (timerState.value % 3600) / 60
-        val s = timerState.value % 60
+        val h = _timerState.value / 3600
+        val m = (_timerState.value % 3600) / 60
+        val s = _timerState.value % 60
         return String.format(Locale.getDefault(), "%02d:%02d:%02d", h, m, s)
     }
 }
