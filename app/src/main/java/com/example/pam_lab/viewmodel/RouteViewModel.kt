@@ -17,18 +17,21 @@ class RouteViewModel(application: Application) : AndroidViewModel(application) {
 
     private val routeDao = AppDatabase.getInstance(application).routeDao()
 
-    // Stan wyboru: null = brak, false = piesza, true = rowerowa
     private val _isBike = MutableStateFlow<Boolean?>(null)
     val bool: StateFlow<Boolean?> = _isBike.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     private val allRoutes = routeDao.getAllFlow()
 
-    // Filtrowanie tras na podstawie wyboru
-    val routes: StateFlow<List<Route>> = combine(allRoutes, _isBike) { routes, isBike ->
+    val routes: StateFlow<List<Route>> = combine(allRoutes, _isBike, _searchQuery) { routes, isBike, query ->
         if (isBike == null) emptyList()
         else {
             val type = if (isBike) "rowerowa" else "piesza"
-            routes.filter { it.type == type }
+            routes.filter { 
+                it.type == type && (query.isEmpty() || it.name.contains(query, ignoreCase = true))
+            }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -65,7 +68,7 @@ class RouteViewModel(application: Application) : AndroidViewModel(application) {
                     Route(name = "Szlak na Skrzyczne", description = "Najwyższy szczyt Beskidu Śląskiego. Podejście ze Szczyrku przez Halę Jaworzynę.", type = "piesza", difficulty = 3, length = 5.0, duration = 150),
                     Route(name = "Szlak na Baranią Górę", description = "Wędrówka do źródeł Wisły z Wisły Czarne przez dolinę Białej Wisełki.", type = "piesza", difficulty = 3, length = 8.0, duration = 180),
                     Route(name = "Pętla przez Czerwone Wierchy", description = "Długa, grzbietowa trasa z Kuźnic. Panoramiczne widoki na Tatry Wysokie i Zachodnie.", type = "piesza", difficulty = 4, length = 15.0, duration = 420),
-                    Route(name = "Szlak Doliną Chochołowską", description = "Najdłuższa dolina w Tatrach. Idealna na wiosenny spacer wśród krokusów.", type = "piesza", difficulty = 1, length = 7.5, duration = 120),
+                    Route(name = "Szlak Doliną Chochołowską", description = "Najduższa dolina w Tatrach. Idealna na wiosenny spacer wśród krokusów.", type = "piesza", difficulty = 1, length = 7.5, duration = 120),
                     Route(name = "Szlak Doliną Kościeliską", description = "Jedna z najpiękniejszych dolin reglowych z licznymi jaskiniami i wąwozem Kraków.", type = "piesza", difficulty = 1, length = 6.0, duration = 90),
                     Route(name = "Szlak na Halę Gąsienicową", description = "Z Kuźnic przez Boczań. Kultowe miejsce z widokiem na Kościelec i Granaty.", type = "piesza", difficulty = 2, length = 6.0, duration = 120),
 
@@ -99,6 +102,10 @@ class RouteViewModel(application: Application) : AndroidViewModel(application) {
     fun setRoute(newBool: Boolean) {
         _isBike.value = newBool
         _selectedRoute.value = null
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     fun selectRoute(route: Route?) {

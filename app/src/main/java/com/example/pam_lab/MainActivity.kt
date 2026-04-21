@@ -36,15 +36,22 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -52,23 +59,29 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -92,7 +105,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            // rememberSaveable sprawia, że stan przetrwa obrót ekranu
             var isDarkTheme by rememberSaveable { mutableStateOf(false) }
             
             Lab2Theme(darkTheme = isDarkTheme) {
@@ -117,12 +129,12 @@ fun Main(
     val activity: Activity = LocalActivity.current as Activity
 
     var isDrawerExpanded by rememberSaveable { mutableStateOf(false) }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
     
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showDrawer = currentRoute != "viewType" && currentRoute != "start"
 
-    // Surface owijający NavHost zapewnia spójne tło podczas przejść między ekranami
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -135,7 +147,9 @@ fun Main(
                     routeViewModel = routeViewModel,
                     navController = navController,
                     isDarkTheme = isDarkTheme,
-                    onThemeToggle = onThemeToggle
+                    onThemeToggle = onThemeToggle,
+                    isSearchActive = isSearchActive,
+                    onSearchToggle = { isSearchActive = !isSearchActive }
                 )
             }
 
@@ -148,7 +162,7 @@ fun Main(
                                 StartScreenMobile(navController, routeViewModel, timerViewModel)
                             }
                             else -> {
-                                MainScreenTablet(routeViewModel, timerViewModel)
+                                MainScreenTablet(routeViewModel, timerViewModel, isSearchActive)
                             }
                         }
                     }
@@ -156,22 +170,16 @@ fun Main(
                         StartScreenMobile(navController, routeViewModel, timerViewModel)
                     }
                     composable("main") {
-                        MainScreen(navController, routeViewModel, timerViewModel)
+                        MainScreen(navController, routeViewModel, timerViewModel, isSearchActive)
                     }
                     composable(
-                        route = "detail/{name}/{description}",
+                        route = "detail/{name}",
                         arguments = listOf(
-                            navArgument("name") { type = NavType.StringType },
-                            navArgument("description") {
-                                type = NavType.StringType
-                                nullable = true
-                                defaultValue = "Brak opisu dla tej trasy."
-                            }
+                            navArgument("name") { type = NavType.StringType }
                         )
                     ) { backstackEntry ->
                         val name = backstackEntry.arguments?.getString("name")
-                        val description = backstackEntry.arguments?.getString("description")
-                        DetailScreen(navController, name, description, timerViewModel)
+                        DetailScreen(navController, name, routeViewModel, timerViewModel)
                     }
                 }
             }
@@ -186,7 +194,9 @@ fun LeftSideDrawer(
     routeViewModel: RouteViewModel,
     navController: NavController,
     isDarkTheme: Boolean,
-    onThemeToggle: () -> Unit
+    onThemeToggle: () -> Unit,
+    isSearchActive: Boolean,
+    onSearchToggle: () -> Unit
 ) {
     val drawerWidth = if (isExpanded) 150.dp else 48.dp
     val selectedType by routeViewModel.bool.collectAsState()
@@ -213,7 +223,6 @@ fun LeftSideDrawer(
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // PRZEŁĄCZNIKI RODZAJU TRASY
             DrawerItem(
                 icon = Icons.AutoMirrored.Filled.DirectionsWalk,
                 label = "Piesza",
@@ -246,7 +255,8 @@ fun LeftSideDrawer(
                 icon = Icons.Default.Search,
                 label = "Szukaj",
                 isExpanded = isExpanded,
-                onClick = {}
+                selected = isSearchActive,
+                onClick = onSearchToggle
             )
             
             DrawerItem(
@@ -297,9 +307,47 @@ fun DrawerItem(
     }
 }
 
+@Composable
+fun SearchBarComponent(routeViewModel: RouteViewModel) {
+    val searchQuery by routeViewModel.searchQuery.collectAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = { routeViewModel.setSearchQuery(it) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .focusRequester(focusRequester),
+        placeholder = { Text("Wyszukaj trasę...") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        trailingIcon = {
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { routeViewModel.setSearchQuery("") }) {
+                    Icon(Icons.Default.Close, contentDescription = "Wyczyść")
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+        )
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewModel) {
+fun MainScreenTablet(
+    routeViewModel: RouteViewModel, 
+    timerViewModel: TimerViewModel,
+    isSearchActive: Boolean
+) {
     val routes by routeViewModel.routes.collectAsState()
     val selectedRoute by routeViewModel.selectedRoute.collectAsState()
 
@@ -317,29 +365,35 @@ fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewMo
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (routes.isEmpty()) {
-                    item {
+            Column(modifier = Modifier.weight(1f)) {
+                if (isSearchActive) {
+                    SearchBarComponent(routeViewModel)
+                }
+                
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (routes.isEmpty()) {
+                        item {
+                            Text(
+                                text = "Brak wyników lub nie wybrano kategorii.",
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    items(routes) { item ->
                         Text(
-                            text = "Wybierz kategorię z bocznego menu.",
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = item.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { routeViewModel.selectRoute(item) }
+                                .padding(16.dp)
                         )
                     }
-                }
-                items(routes) { item ->
-                    Text(
-                        text = item.name,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { routeViewModel.selectRoute(item) }
-                            .padding(16.dp)
-                    )
                 }
             }
 
@@ -350,23 +404,7 @@ fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewMo
                     .padding(16.dp)
             ) {
                 if (selectedRoute != null) {
-                    Text(
-                        text = selectedRoute!!.name,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = selectedRoute!!.description,
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                    
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        TimerControls(
-                            name = selectedRoute!!.name,
-                            timerViewModel = timerViewModel,
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                        )
-                    }
+                    DetailContent(selectedRoute!!, timerViewModel)
                 } else {
                     Text(
                         text = "Wybierz trasę z listy, aby zobaczyć szczegóły.",
@@ -441,7 +479,8 @@ fun StartScreenMobile(
 fun MainScreen(
     navController: NavController,
     routeViewModel: RouteViewModel,
-    timerViewModel: TimerViewModel
+    timerViewModel: TimerViewModel,
+    isSearchActive: Boolean
 ) {
     val routes by routeViewModel.routes.collectAsState()
 
@@ -455,34 +494,36 @@ fun MainScreen(
         },
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            contentPadding = innerPadding,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (routes.isEmpty()) {
-                item {
+        Column(modifier = Modifier.padding(innerPadding)) {
+            if (isSearchActive) {
+                SearchBarComponent(routeViewModel)
+            }
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (routes.isEmpty()) {
+                    item {
+                        Text(
+                            text = "Brak wyników lub nie wybrano kategorii.",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                items(routes) { item ->
                     Text(
-                        text = "Wybierz kategorię z bocznego menu.",
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = item.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val encodedName = Uri.encode(item.name)
+                                navController.navigate("detail/$encodedName")
+                            }
+                            .padding(16.dp)
                     )
                 }
-            }
-            items(routes) { item ->
-                Text(
-                    text = item.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val encodedName = Uri.encode(item.name)
-                            val encodedDescription = Uri.encode(item.description)
-                            navController.navigate("detail/$encodedName/$encodedDescription")
-                        }
-                        .padding(16.dp)
-                )
             }
         }
     }
@@ -493,9 +534,12 @@ fun MainScreen(
 fun DetailScreen(
     navController: NavController,
     name: String?,
-    description: String?,
+    routeViewModel: RouteViewModel,
     timerViewModel: TimerViewModel
 ) {
+    val routes by routeViewModel.routes.collectAsState()
+    val route = routes.find { it.name == name }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -520,17 +564,106 @@ fun DetailScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
+            if (route != null) {
+                DetailContent(route, timerViewModel)
+            } else {
+                Text(text = "Nie znaleziono trasy.")
+            }
+        }
+    }
+}
+
+@Composable
+fun DetailContent(route: com.example.pam_lab.database.Route, timerViewModel: TimerViewModel) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
             Text(
                 text = "O trasie:",
-                modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = description ?: "Trasa nie posiada opisu",
-                modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                text = route.description,
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodyLarge
             )
         }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    InfoRow(icon = Icons.Default.Route, label = "Dystans", value = "${route.length} km")
+                    InfoRow(icon = Icons.Default.History, label = "Czas", value = "${route.duration} min")
+                    
+                    val (difficultyText, difficultyColor) = when(route.difficulty) {
+                        1 -> "Bardzo łatwa" to Color(0xFF4CAF50) // Zielony
+                        2 -> "Łatwa" to Color(0xFF2196F3)        // Niebieski
+                        3 -> "Średnia" to Color(0xFFFFEB3B)      // Żółty
+                        4 -> "Trudna" to Color(0xFFF44336)       // Czerwony
+                        else -> "Bardzo trudna" to Color.Black
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SignalCellularAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(text = "Trudność:", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(100.dp))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(difficultyColor)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = difficultyText, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+        
+        item {
+            Spacer(modifier = Modifier.height(100.dp))
+        }
+    }
+}
+
+@Composable
+fun InfoRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(text = "$label:", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(100.dp))
+        Text(text = value, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -544,6 +677,7 @@ fun TimerControls(
     val timerRunning by timerViewModel.running.collectAsState()
     val currentRouteName by timerViewModel.currentRouteName.collectAsState()
     
+    // Explicitly check collected state variables to ensure Compose tracks them for recomposition
     timerState; timerRunning; currentRouteName
 
     val isTimerSessionActive = currentRouteName != null
