@@ -39,6 +39,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -216,6 +219,14 @@ fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewMo
                         text = selectedRoute!!.description,
                         modifier = Modifier.padding(top = 16.dp)
                     )
+                    
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        TimerControls(
+                            name = selectedRoute!!.name,
+                            timerViewModel = timerViewModel,
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                        )
+                    }
                 } else {
                     Text(
                         text = "Wybierz trasę z listy, aby zobaczyć szczegóły.",
@@ -372,23 +383,6 @@ fun DetailScreen(
     description: String?,
     timerViewModel: TimerViewModel
 ) {
-    val timerState by timerViewModel.timerState.collectAsState()
-    val timerRunning by timerViewModel.running.collectAsState()
-    val currentRouteName by timerViewModel.currentRouteName.collectAsState()
-    
-    // Explicitly check collected state variables to ensure Compose tracks them for recomposition
-    timerState; timerRunning; currentRouteName
-
-    val isTimerActive = timerState > 0 || timerRunning
-    val isCorrectRoute = currentRouteName == name
-
-    // Determine the layout state for AnimatedContent
-    val fabState = when {
-        !isTimerActive -> "idle"
-        !isCorrectRoute -> "conflict"
-        else -> "active"
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -404,130 +398,7 @@ fun DetailScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (fabState == "idle") {
-                        timerViewModel.startTimer(name)
-                    }
-                },
-                modifier = Modifier.padding(16.dp),
-                shape = if (fabState == "idle") CircleShape else RoundedCornerShape(24.dp),
-                containerColor = if (fabState == "idle") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-            ) {
-                AnimatedContent(
-                    targetState = fabState,
-                    transitionSpec = {
-                        fadeIn().togetherWith(fadeOut()).using(SizeTransform(clip = false))
-                    },
-                    label = "TimerStateTransition"
-                ) { target ->
-                    when (target) {
-                        "idle" -> {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Start Timer",
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                        "conflict" -> {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "Timer running on:\n${currentRouteName ?: "Other route"}",
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = 14.sp,
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                IconButton(
-                                    onClick = { timerViewModel.restartTimer() },
-                                    modifier = Modifier.background(MaterialTheme.colorScheme.errorContainer, CircleShape).size(36.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Refresh,
-                                        contentDescription = "Reset",
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                        "active" -> {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(12.dp),
-                                    shadowElevation = 4.dp
-                                ) {
-                                    // Use timerState to ensure recomposition
-                                    Text(
-                                        text = timerViewModel.displayTime(),
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                }
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
-                                            .size(44.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        IconButton(onClick = { timerViewModel.toggleTimer(name) }) {
-                                            Icon(
-                                                imageVector = if (timerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                                contentDescription = if (timerRunning) "Pause" else "Start",
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape)
-                                            .size(44.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        IconButton(onClick = { timerViewModel.restartAndStart(name) }) {
-                                            Icon(
-                                                Icons.Default.Refresh,
-                                                contentDescription = "Restart",
-                                                tint = MaterialTheme.colorScheme.onTertiaryContainer
-                                            )
-                                        }
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .background(MaterialTheme.colorScheme.errorContainer, CircleShape)
-                                            .size(44.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        IconButton(onClick = { timerViewModel.restartTimer() }) {
-                                            Icon(
-                                                Icons.Default.Stop,
-                                                contentDescription = "Reset",
-                                                tint = MaterialTheme.colorScheme.onErrorContainer
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            TimerControls(name = name, timerViewModel = timerViewModel)
         }
     ) { innerPadding ->
         Column(
@@ -546,6 +417,167 @@ fun DetailScreen(
                 text = description ?: "Trasa nie posiada opisu",
                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun TimerControls(
+    name: String?,
+    timerViewModel: TimerViewModel,
+    modifier: Modifier = Modifier
+) {
+    val timerState by timerViewModel.timerState.collectAsState()
+    val timerRunning by timerViewModel.running.collectAsState()
+    val currentRouteName by timerViewModel.currentRouteName.collectAsState()
+    
+    // Explicitly check collected state variables to ensure Compose tracks them for recomposition
+    timerState; timerRunning; currentRouteName
+
+    val isTimerActive = timerState > 0 || timerRunning
+    val isCorrectRoute = currentRouteName == name
+
+    // Determine the layout state for AnimatedContent
+    val fabState = when {
+        !isTimerActive -> "idle"
+        !isCorrectRoute -> "conflict"
+        else -> "active"
+    }
+
+    Box(modifier = modifier) {
+        FloatingActionButton(
+            onClick = {
+                if (fabState == "idle") {
+                    timerViewModel.startTimer(name)
+                }
+            },
+            modifier = Modifier.padding(16.dp),
+            shape = if (fabState == "idle") CircleShape else RoundedCornerShape(28.dp),
+            containerColor = if (fabState == "idle") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+            elevation = if (fabState == "idle") FloatingActionButtonDefaults.elevation() else FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+        ) {
+            AnimatedContent(
+                targetState = fabState,
+                transitionSpec = {
+                    fadeIn().togetherWith(fadeOut()).using(SizeTransform(clip = false))
+                },
+                label = "TimerStateTransition"
+            ) { target ->
+                when (target) {
+                    "idle" -> {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = "Start Timer",
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    "conflict" -> {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Timer aktywny na innej trasie:",
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = currentRouteName ?: "Inna trasa",
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            IconButton(
+                                onClick = { timerViewModel.restartTimer() },
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.error, CircleShape)
+                                    .size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Zresetuj timer",
+                                    tint = MaterialTheme.colorScheme.onError,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                    "active" -> {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.shadow(2.dp, RoundedCornerShape(16.dp))
+                            ) {
+                                Text(
+                                    text = timerViewModel.displayTime(),
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Start/Pause Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (timerRunning) MaterialTheme.colorScheme.secondaryContainer 
+                                            else MaterialTheme.colorScheme.tertiaryContainer
+                                        )
+                                        .clickable { timerViewModel.toggleTimer(name) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (timerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (timerRunning) "Wstrzymaj" else "Wznów",
+                                        tint = if (timerRunning) MaterialTheme.colorScheme.onSecondaryContainer 
+                                               else MaterialTheme.colorScheme.onTertiaryContainer,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                
+                                // Stop/Reset Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.errorContainer)
+                                        .clickable { timerViewModel.restartTimer() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (timerRunning) Icons.Default.Stop else Icons.Default.Refresh,
+                                        contentDescription = "Zatrzymaj i zresetuj",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
