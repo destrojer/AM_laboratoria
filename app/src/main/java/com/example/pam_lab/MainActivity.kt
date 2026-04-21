@@ -18,20 +18,30 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
@@ -53,10 +63,16 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,6 +82,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.pam_lab.ui.theme.Lab2Theme
@@ -77,8 +94,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            Lab2Theme {
-                Main()
+            // rememberSaveable sprawia, że stan przetrwa obrót ekranu
+            var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+            
+            Lab2Theme(darkTheme = isDarkTheme) {
+                Main(
+                    isDarkTheme = isDarkTheme,
+                    onThemeToggle = { isDarkTheme = !isDarkTheme }
+                )
             }
         }
     }
@@ -86,44 +109,192 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun Main() {
+fun Main(
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit
+) {
     val navController = rememberNavController()
     val routeViewModel: RouteViewModel = viewModel()
     val timerViewModel: TimerViewModel = viewModel()
     val activity: Activity = LocalActivity.current as Activity
 
-    NavHost(navController = navController, startDestination = "viewType") {
-        composable("viewType") {
-            val windowSizeClass = calculateWindowSizeClass(activity = activity)
-            when (windowSizeClass.widthSizeClass) {
-                WindowWidthSizeClass.Compact -> {
-                    StartScreenMobile(navController, routeViewModel, timerViewModel)
-                }
-                else -> {
-                    MainScreenTablet(routeViewModel, timerViewModel)
+    var isDrawerExpanded by rememberSaveable { mutableStateOf(false) }
+    
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showDrawer = currentRoute != "viewType" && currentRoute != "start"
+
+    // Surface owijający NavHost zapewnia spójne tło podczas przejść między ekranami
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (showDrawer) {
+                LeftSideDrawer(
+                    isExpanded = isDrawerExpanded,
+                    onToggleExpand = { isDrawerExpanded = !isDrawerExpanded },
+                    routeViewModel = routeViewModel,
+                    navController = navController,
+                    isDarkTheme = isDarkTheme,
+                    onThemeToggle = onThemeToggle
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                NavHost(navController = navController, startDestination = "viewType") {
+                    composable("viewType") {
+                        val windowSizeClass = calculateWindowSizeClass(activity = activity)
+                        when (windowSizeClass.widthSizeClass) {
+                            WindowWidthSizeClass.Compact -> {
+                                StartScreenMobile(navController, routeViewModel, timerViewModel)
+                            }
+                            else -> {
+                                MainScreenTablet(routeViewModel, timerViewModel)
+                            }
+                        }
+                    }
+                    composable("start") {
+                        StartScreenMobile(navController, routeViewModel, timerViewModel)
+                    }
+                    composable("main") {
+                        MainScreen(navController, routeViewModel, timerViewModel)
+                    }
+                    composable(
+                        route = "detail/{name}/{description}",
+                        arguments = listOf(
+                            navArgument("name") { type = NavType.StringType },
+                            navArgument("description") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = "Brak opisu dla tej trasy."
+                            }
+                        )
+                    ) { backstackEntry ->
+                        val name = backstackEntry.arguments?.getString("name")
+                        val description = backstackEntry.arguments?.getString("description")
+                        DetailScreen(navController, name, description, timerViewModel)
+                    }
                 }
             }
         }
-        composable("start") {
-            StartScreenMobile(navController, routeViewModel, timerViewModel)
-        }
-        composable("main") {
-            MainScreen(navController, routeViewModel, timerViewModel)
-        }
-        composable(
-            route = "detail/{name}/{description}",
-            arguments = listOf(
-                navArgument("name") { type = NavType.StringType },
-                navArgument("description") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = "Brak opisu dla tej trasy."
+    }
+}
+
+@Composable
+fun LeftSideDrawer(
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    routeViewModel: RouteViewModel,
+    navController: NavController,
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit
+) {
+    val drawerWidth = if (isExpanded) 150.dp else 48.dp
+    val selectedType by routeViewModel.bool.collectAsState()
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(drawerWidth)
+            .shadow(4.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            DrawerItem(
+                icon = if (isExpanded) Icons.Default.ChevronLeft else Icons.Default.ChevronRight,
+                label = if (isExpanded) "Zwiń" else "",
+                isExpanded = isExpanded,
+                onClick = onToggleExpand
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // PRZEŁĄCZNIKI RODZAJU TRASY
+            DrawerItem(
+                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                label = "Piesza",
+                isExpanded = isExpanded,
+                selected = selectedType == false,
+                onClick = { 
+                    routeViewModel.setRoute(false)
+                    navController.navigate("main") {
+                        popUpTo("main") { inclusive = true }
+                    }
                 }
             )
-        ) { backstackEntry ->
-            val name = backstackEntry.arguments?.getString("name")
-            val description = backstackEntry.arguments?.getString("description")
-            DetailScreen(navController, name, description, timerViewModel)
+
+            DrawerItem(
+                icon = Icons.AutoMirrored.Filled.DirectionsBike,
+                label = "Rowerowa",
+                isExpanded = isExpanded,
+                selected = selectedType == true,
+                onClick = { 
+                    routeViewModel.setRoute(true)
+                    navController.navigate("main") {
+                        popUpTo("main") { inclusive = true }
+                    }
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            DrawerItem(
+                icon = Icons.Default.Search,
+                label = "Szukaj",
+                isExpanded = isExpanded,
+                onClick = {}
+            )
+            
+            DrawerItem(
+                icon = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                label = if (isDarkTheme) "Jasny" else "Ciemny",
+                isExpanded = isExpanded,
+                onClick = onThemeToggle
+            )
+        }
+    }
+}
+
+@Composable
+fun DrawerItem(
+    icon: ImageVector,
+    label: String,
+    isExpanded: Boolean,
+    selected: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(24.dp),
+            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (isExpanded) {
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1
+            )
         }
     }
 }
@@ -132,42 +303,13 @@ fun Main() {
 @Composable
 fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewModel) {
     val routes by routeViewModel.routes.collectAsState()
-    val isBike by routeViewModel.bool.collectAsState()
     val selectedRoute by routeViewModel.selectedRoute.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Panel Zarządzania Trasami",
-                            modifier = Modifier.weight(1f)
-                        )
-                        Button(
-                            onClick = { routeViewModel.setRoute(false) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isBike == false) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                            ),
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        ) {
-                            Text(text = "Pieszo")
-                        }
-                        Button(
-                            onClick = { routeViewModel.setRoute(true) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isBike == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                            ),
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        ) {
-                            Text(text = "Rowerem")
-                        }
-                    }
+                    Text(text = "Panel Zarządzania Trasami")
                 }
             )
         }
@@ -186,7 +328,7 @@ fun MainScreenTablet(routeViewModel: RouteViewModel, timerViewModel: TimerViewMo
                 if (routes.isEmpty()) {
                     item {
                         Text(
-                            text = "Wybierz kategorię, aby zobaczyć trasy.",
+                            text = "Wybierz kategorię z bocznego menu.",
                             modifier = Modifier.padding(16.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -303,41 +445,13 @@ fun MainScreen(
     routeViewModel: RouteViewModel,
     timerViewModel: TimerViewModel
 ) {
-    val isBike by routeViewModel.bool.collectAsState()
     val routes by routeViewModel.routes.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 16.dp)
-                    ) {
-                        Button(
-                            onClick = { routeViewModel.setRoute(false) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isBike == false) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 4.dp)
-                        ) {
-                            Text(text = "Pieszo")
-                        }
-                        Button(
-                            onClick = { routeViewModel.setRoute(true) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isBike == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 4.dp)
-                        ) {
-                            Text(text = "Rowerem")
-                        }
-                    }
+                    Text(text = "Lista tras")
                 }
             )
         },
@@ -350,11 +464,12 @@ fun MainScreen(
             contentPadding = innerPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (isBike == null) {
+            if (routes.isEmpty()) {
                 item {
                     Text(
-                        text = "Wybierz kategorię powyżej.",
-                        modifier = Modifier.padding(16.dp)
+                        text = "Wybierz kategorię z bocznego menu.",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -431,15 +546,13 @@ fun TimerControls(
     val timerRunning by timerViewModel.running.collectAsState()
     val currentRouteName by timerViewModel.currentRouteName.collectAsState()
     
-    // Explicitly check collected state variables to ensure Compose tracks them for recomposition
     timerState; timerRunning; currentRouteName
 
-    val isTimerActive = timerState > 0 || timerRunning
+    val isTimerSessionActive = currentRouteName != null
     val isCorrectRoute = currentRouteName == name
 
-    // Determine the layout state for AnimatedContent
     val fabState = when {
-        !isTimerActive -> "idle"
+        !isTimerSessionActive -> "idle"
         !isCorrectRoute -> "conflict"
         else -> "active"
     }
@@ -454,7 +567,7 @@ fun TimerControls(
             modifier = Modifier.padding(16.dp),
             shape = if (fabState == "idle") CircleShape else RoundedCornerShape(28.dp),
             containerColor = if (fabState == "idle") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-            elevation = if (fabState == "idle") FloatingActionButtonDefaults.elevation() else FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
         ) {
             AnimatedContent(
                 targetState = fabState,
@@ -536,14 +649,13 @@ fun TimerControls(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Start/Pause Button
                                 Box(
                                     modifier = Modifier
                                         .size(48.dp)
                                         .clip(CircleShape)
                                         .background(
                                             if (timerRunning) MaterialTheme.colorScheme.secondaryContainer 
-                                            else MaterialTheme.colorScheme.tertiaryContainer
+                                            else MaterialTheme.colorScheme.secondary
                                         )
                                         .clickable { timerViewModel.toggleTimer(name) },
                                     contentAlignment = Alignment.Center
@@ -552,24 +664,34 @@ fun TimerControls(
                                         imageVector = if (timerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                                         contentDescription = if (timerRunning) "Wstrzymaj" else "Wznów",
                                         tint = if (timerRunning) MaterialTheme.colorScheme.onSecondaryContainer 
-                                               else MaterialTheme.colorScheme.onTertiaryContainer,
+                                               else MaterialTheme.colorScheme.onSecondary,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
                                 
-                                // Stop/Reset Button
                                 Box(
                                     modifier = Modifier
                                         .size(48.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.errorContainer)
-                                        .clickable { timerViewModel.restartTimer() },
+                                        .background(
+                                            if (!timerRunning) MaterialTheme.colorScheme.surfaceVariant
+                                            else MaterialTheme.colorScheme.errorContainer
+                                        )
+                                        .clickable { 
+                                            if (!timerRunning) {
+                                                timerViewModel.restartAndStart(name)
+                                                timerViewModel.stopTimer()
+                                            } else {
+                                                timerViewModel.restartTimer()
+                                            }
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = if (timerRunning) Icons.Default.Stop else Icons.Default.Refresh,
-                                        contentDescription = "Zatrzymaj i zresetuj",
-                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        imageVector = if (!timerRunning) Icons.Default.Refresh else Icons.Default.Stop,
+                                        contentDescription = if (!timerRunning) "Resetuj" else "Zamknij",
+                                        tint = if (!timerRunning) MaterialTheme.colorScheme.onSurfaceVariant
+                                               else MaterialTheme.colorScheme.onErrorContainer,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
