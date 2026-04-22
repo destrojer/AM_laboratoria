@@ -1,6 +1,5 @@
 package com.example.pam_lab.database
 
-import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -27,4 +26,16 @@ interface RouteDao {
 
     @Delete
     suspend fun deleteRoute(route: Route)
+}
+
+@Dao
+interface RouteTimerDao {
+    @Query("SELECT * FROM route_timer")
+    fun getAllFlow(): Flow<List<RouteTimer>>
+
+    @Insert
+    suspend fun insertTimer(routeTimer: RouteTimer)
+
+    @Delete
+    suspend fun deleteTimer(routeTimer: RouteTimer)
 }

@@ -12,4 +12,11 @@ data class Route(
     val difficulty: Int, //trudnosc w skali od 1 do 5 okreslone potem jako gwiazdki
     val length: Double, // dlugosc trasy w kilometrach lub metrach
     val duration: Int, // typowy lub przewidywany czas przejscia trasy
-    )
+)
+
+@Entity(tableName = "route_timer")
+data class RouteTimer(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val routeName: String,
+    val timeInSeconds: Int
+)
