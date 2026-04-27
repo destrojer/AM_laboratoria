@@ -3,17 +3,23 @@ package com.example.pam_lab
 import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,19 +31,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.AddLocationAlt
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Pause
@@ -46,8 +56,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SignalCellularAlt
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,6 +75,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -84,10 +97,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -96,6 +113,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.pam_lab.database.Route
+import com.example.pam_lab.database.RouteTimer
 import com.example.pam_lab.ui.theme.Lab2Theme
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
@@ -125,7 +144,15 @@ fun Main(
 ) {
     val navController = rememberNavController()
     val routeViewModel: RouteViewModel = viewModel()
-    val timerViewModel: TimerViewModel = viewModel()
+    
+    val context = LocalContext.current
+    val timerViewModel: TimerViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return TimerViewModel(context.applicationContext) as T
+            }
+        }
+    )
     val activity: Activity = LocalActivity.current as Activity
 
     var isDrawerExpanded by rememberSaveable { mutableStateOf(false) }
@@ -188,6 +215,152 @@ fun Main(
 }
 
 @Composable
+fun AddRouteDialog(
+    onDismiss: () -> Unit,
+    onSave: (Route) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var isBike by remember { mutableStateOf(false) }
+    var difficulty by remember { mutableStateOf(1) }
+    var length by remember { mutableStateOf("") }
+    var duration by remember { mutableStateOf("") }
+
+    val isFormValid = name.isNotBlank() && 
+            (length.toDoubleOrNull() ?: 0.0) > 0.0 && 
+            (duration.toIntOrNull() ?: 0) > 0
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Dodaj własną trasę") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name, 
+                    onValueChange = { name = it }, 
+                    label = { Text("Nazwa trasy *") }, 
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = description, 
+                    onValueChange = { description = it }, 
+                    label = { Text("Opis") }, 
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Typ:", fontWeight = FontWeight.SemiBold)
+                    Button(
+                        onClick = { isBike = false },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (!isBike) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (!isBike) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) { Text("Piesza") }
+                    Button(
+                        onClick = { isBike = true },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isBike) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (isBike) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) { Text("Rowerowa") }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val (difficultyText, difficultyColor) = when(difficulty) {
+                        1 -> "Bardzo łatwa" to Color(0xFF4CAF50)
+                        2 -> "Łatwa" to Color(0xFF2196F3)
+                        3 -> "Średnia" to Color(0xFFFFA000)
+                        4 -> "Trudna" to Color(0xFFF44336)
+                        else -> "Bardzo trudna" to Color.Black
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Trudność: ", fontWeight = FontWeight.SemiBold)
+                        Text(text = difficultyText, color = difficultyColor, fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        repeat(5) { i ->
+                            val level = i + 1
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (level <= difficulty) difficultyColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { difficulty = level },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (level <= difficulty) difficultyColor else Color.Gray.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = length, 
+                    onValueChange = { length = it }, 
+                    label = { Text("Dystans (km) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = length.isNotEmpty() && (length.toDoubleOrNull() == null || length.toDoubleOrNull()!! <= 0)
+                )
+                OutlinedTextField(
+                    value = duration, 
+                    onValueChange = { duration = it }, 
+                    label = { Text("Czas (min) *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = duration.isNotEmpty() && (duration.toIntOrNull() == null || duration.toIntOrNull()!! <= 0)
+                )
+                
+                Text(
+                    text = "* Pola wymagane",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = isFormValid,
+                onClick = {
+                    onSave(Route(
+                        name = name,
+                        description = description,
+                        type = if (isBike) "rowerowa" else "piesza",
+                        difficulty = difficulty,
+                        length = length.toDoubleOrNull() ?: 0.0,
+                        duration = duration.toIntOrNull() ?: 0
+                    ))
+                }
+            ) { Text("Zapisz") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
+    )
+}
+
+@Composable
 fun LeftSideDrawer(
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
@@ -200,6 +373,17 @@ fun LeftSideDrawer(
 ) {
     val drawerWidth = if (isExpanded) 150.dp else 48.dp
     val selectedType by routeViewModel.bool.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddRouteDialog(
+            onDismiss = { showAddDialog = false },
+            onSave = {
+                routeViewModel.addCustomRoute(it)
+                showAddDialog = false
+            }
+        )
+    }
     
     Surface(
         modifier = Modifier
@@ -250,6 +434,14 @@ fun LeftSideDrawer(
             )
             
             Spacer(modifier = Modifier.height(16.dp))
+
+            // DODAJ TRASĘ
+            DrawerItem(
+                icon = Icons.Default.AddLocationAlt,
+                label = "Dodaj trasę",
+                isExpanded = isExpanded,
+                onClick = { showAddDialog = true }
+            )
             
             DrawerItem(
                 icon = Icons.Default.Search,
@@ -574,7 +766,43 @@ fun DetailScreen(
 }
 
 @Composable
-fun DetailContent(route: com.example.pam_lab.database.Route, timerViewModel: TimerViewModel) {
+fun DetailContent(route: Route, timerViewModel: TimerViewModel) {
+    val savedTimes by timerViewModel.allSavedTimes.collectAsState()
+    val routeTimes = savedTimes.filter { it.routeName == route.name }
+    
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var timeToDelete by remember { mutableStateOf<RouteTimer?>(null) }
+
+    if (showDeleteDialog && timeToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showDeleteDialog = false 
+                timeToDelete = null
+            },
+            title = { Text("Usuwanie czasu") },
+            text = { Text("Czy na pewno chcesz usunąć ten wynik? Tej operacji nie da się cofnąć.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        timerViewModel.deleteTime(timeToDelete!!)
+                        showDeleteDialog = false
+                        timeToDelete = null
+                    }
+                ) {
+                    Text("Usuń", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showDeleteDialog = false
+                    timeToDelete = null
+                }) {
+                    Text("Anuluj")
+                }
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -604,46 +832,88 @@ fun DetailContent(route: com.example.pam_lab.database.Route, timerViewModel: Tim
                     InfoRow(icon = Icons.Default.History, label = "Czas", value = "${route.duration} min")
                     
                     val (difficultyText, difficultyColor) = when(route.difficulty) {
-                        1 -> "Bardzo łatwa" to Color(0xFF4CAF50) // Zielony
-                        2 -> "Łatwa" to Color(0xFF2196F3)        // Niebieski
-                        3 -> "Średnia" to Color(0xFFFFEB3B)      // Żółty
-                        4 -> "Trudna" to Color(0xFFF44336)       // Czerwony
+                        1 -> "Bardzo łatwa" to Color(0xFF4CAF50)
+                        2 -> "Łatwa" to Color(0xFF2196F3)
+                        3 -> "Średnia" to Color(0xFFFFA000)
+                        4 -> "Trudna" to Color(0xFFF44336)
                         else -> "Bardzo trudna" to Color.Black
                     }
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.SignalCellularAlt,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
+                        Icon(Icons.Default.SignalCellularAlt, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = "Trudność:", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(100.dp))
-                        
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(CircleShape)
-                                    .background(difficultyColor)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = difficultyText, fontWeight = FontWeight.Medium)
-                        }
+                        Text("Trudność:", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(100.dp))
+                        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(difficultyColor))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(difficultyText, fontWeight = FontWeight.Medium)
                     }
                 }
             }
         }
-        
-        item {
-            Spacer(modifier = Modifier.height(100.dp))
+
+        if (routeTimes.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Twoje czasy:",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            items(routeTimes) { timeRecord ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = timerViewModel.formatTime(timeRecord.timeInSeconds),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = timerViewModel.formatDate(timeRecord.date),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        IconButton(onClick = { 
+                            timeToDelete = timeRecord
+                            showDeleteDialog = true 
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Usuń czas",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                Text(
+                    text = "Brak zapisanych czasów dla tej trasy.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
         }
+        
+        item { Spacer(modifier = Modifier.height(100.dp)) }
     }
 }
 
@@ -667,6 +937,7 @@ fun InfoRow(icon: ImageVector, label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TimerControls(
     name: String?,
@@ -676,8 +947,8 @@ fun TimerControls(
     val timerState by timerViewModel.timerState.collectAsState()
     val timerRunning by timerViewModel.running.collectAsState()
     val currentRouteName by timerViewModel.currentRouteName.collectAsState()
+    val context = LocalContext.current
     
-    // Explicitly check collected state variables to ensure Compose tracks them for recomposition
     timerState; timerRunning; currentRouteName
 
     val isTimerSessionActive = currentRouteName != null
@@ -696,10 +967,13 @@ fun TimerControls(
                     timerViewModel.startTimer(name)
                 }
             },
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .shadow(6.dp, if (fabState == "idle") CircleShape else RoundedCornerShape(28.dp))
+                .clip(if (fabState == "idle") CircleShape else RoundedCornerShape(28.dp)),
             shape = if (fabState == "idle") CircleShape else RoundedCornerShape(28.dp),
             containerColor = if (fabState == "idle") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+            elevation = FloatingActionButtonDefaults.elevation(0.dp)
         ) {
             AnimatedContent(
                 targetState = fabState,
@@ -759,9 +1033,9 @@ fun TimerControls(
                     }
                     "active" -> {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Surface(
                                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -777,6 +1051,24 @@ fun TimerControls(
                                     letterSpacing = 1.sp
                                 )
                             }
+
+                            AnimatedVisibility(
+                                visible = !timerRunning && timerState > 0 && isCorrectRoute,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                Text(
+                                    text = "Przytrzymaj ikonę wznowienia \naby zapisać trasę",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 10.sp,
+                                    lineHeight = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                            }
+
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -789,7 +1081,14 @@ fun TimerControls(
                                             if (timerRunning) MaterialTheme.colorScheme.secondaryContainer 
                                             else MaterialTheme.colorScheme.secondary
                                         )
-                                        .clickable { timerViewModel.toggleTimer(name) },
+                                        .combinedClickable(
+                                            onClick = { timerViewModel.toggleTimer(name) },
+                                            onLongClick = { 
+                                                if (!timerRunning && timerState > 0) {
+                                                    timerViewModel.saveTimeToDb(context)
+                                                }
+                                            }
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -809,7 +1108,7 @@ fun TimerControls(
                                             if (!timerRunning) MaterialTheme.colorScheme.surfaceVariant
                                             else MaterialTheme.colorScheme.errorContainer
                                         )
-                                        .clickable { 
+                                        .clickable {
                                             if (!timerRunning) {
                                                 timerViewModel.restartAndStart(name)
                                                 timerViewModel.stopTimer()
@@ -820,10 +1119,10 @@ fun TimerControls(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = if (!timerRunning) Icons.Default.Refresh else Icons.Default.Stop,
-                                        contentDescription = if (!timerRunning) "Resetuj" else "Zamknij",
-                                        tint = if (!timerRunning) MaterialTheme.colorScheme.onSurfaceVariant
-                                               else MaterialTheme.colorScheme.onErrorContainer,
+                                        imageVector = if (timerRunning) Icons.Default.Stop else Icons.Default.Refresh,
+                                        contentDescription = if (timerRunning) "Zamknij" else "Resetuj",
+                                        tint = if (timerRunning) MaterialTheme.colorScheme.onErrorContainer 
+                                               else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }

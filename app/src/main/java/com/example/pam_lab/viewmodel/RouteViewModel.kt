@@ -99,6 +99,12 @@ class RouteViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addCustomRoute(route: Route) {
+        viewModelScope.launch {
+            routeDao.insertRoute(route)
+        }
+    }
+
     fun setRoute(newBool: Boolean) {
         _isBike.value = newBool
         _selectedRoute.value = null

@@ -6,15 +6,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pam_lab.database.AppDatabase
 import com.example.pam_lab.database.RouteTimer
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
-class TimerViewModel: ViewModel() {
+class TimerViewModel(context: Context): ViewModel() {
+    private val db = AppDatabase.getInstance(context)
+    private val timerDao = db.routeTimerDao()
+
     private val _timerState = MutableStateFlow(0)
     val timerState: StateFlow<Int> = _timerState.asStateFlow()
 
@@ -24,12 +29,19 @@ class TimerViewModel: ViewModel() {
     private val _currentRouteName = MutableStateFlow<String?>(null)
     val currentRouteName: StateFlow<String?> = _currentRouteName.asStateFlow()
 
-    private var timerJob: Job? = null
+    private var timerJob: kotlinx.coroutines.Job? = null
+
+    // Observe all saved times for specific routes
+    val allSavedTimes: StateFlow<List<RouteTimer>> = timerDao.getAllFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     fun startTimer(routeName: String?) {
         if (timerJob?.isActive == true) return
         
-        // Lock the timer to this route if it's just starting
         if (_timerState.value == 0) {
             _currentRouteName.value = routeName
         }
@@ -37,7 +49,7 @@ class TimerViewModel: ViewModel() {
         _running.value = true
         timerJob = viewModelScope.launch {
             while (_running.value) {
-                delay(1000)
+                kotlinx.coroutines.delay(1000)
                 _timerState.value++
             }
         }
@@ -66,7 +78,6 @@ class TimerViewModel: ViewModel() {
     fun restartAndStart(routeName: String?) {
         stopTimer()
         _timerState.value = 0
-        // We keep the current route name or reset it to the new one
         _currentRouteName.value = routeName
         startTimer(routeName)
     }
@@ -79,12 +90,20 @@ class TimerViewModel: ViewModel() {
         return _timerState.value > 0 || _running.value
     }
 
-    fun displayTime(): String {
-        val h = _timerState.value / 3600
-        val m = (_timerState.value % 3600) / 60
-        val s = _timerState.value % 60
+    fun formatTime(seconds: Int): String {
+        val h = seconds / 3600
+        val m = (seconds % 3600) / 60
+        val s = seconds % 60
         return String.format(Locale.getDefault(), "%02d:%02d:%02d", h, m, s)
     }
+
+    fun formatDate(timestamp: Long): String {
+        val date = Date(timestamp)
+        val format = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        return format.format(date)
+    }
+
+    fun displayTime(): String = formatTime(_timerState.value)
 
     fun saveTimeToDb(context: Context) {
         val routeName = _currentRouteName.value
@@ -92,13 +111,23 @@ class TimerViewModel: ViewModel() {
         
         if (routeName != null && time > 0) {
             viewModelScope.launch {
-                val db = AppDatabase.getInstance(context)
-                db.routeTimerDao().insertTimer(RouteTimer(routeName = routeName, timeInSeconds = time))
-                Toast.makeText(context, "Czas zapisany dla: $routeName", Toast.LENGTH_SHORT).show()
+                // Zapisujemy aktualny timestamp jako datę pokonania trasy
+                timerDao.insertTimer(
+                    RouteTimer(
+                        routeName = routeName, 
+                        timeInSeconds = time,
+                        date = System.currentTimeMillis()
+                    )
+                )
+                Toast.makeText(context, "Czas zapisany!", Toast.LENGTH_SHORT).show()
                 restartTimer()
             }
-        } else {
-            Toast.makeText(context, "Brak czasu do zapisania!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun deleteTime(timeRecord: RouteTimer) {
+        viewModelScope.launch {
+            timerDao.deleteTimer(timeRecord)
         }
     }
 }
