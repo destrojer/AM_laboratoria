@@ -18,5 +18,6 @@ data class Route(
 data class RouteTimer(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val routeName: String,
-    val timeInSeconds: Int
+    val timeInSeconds: Int,
+    val date: Long = 0L
 )

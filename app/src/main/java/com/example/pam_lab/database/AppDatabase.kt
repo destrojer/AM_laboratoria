@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Route::class, RouteTimer::class], version = 2)
+@Database(entities = [Route::class, RouteTimer::class], version = 3)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun routeDao(): RouteDao
     abstract fun routeTimerDao(): RouteTimerDao
@@ -24,6 +24,13 @@ abstract class AppDatabase: RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Dodajemy nową kolumnę 'date' do istniejącej tabeli route_timer
+                db.execSQL("ALTER TABLE `route_timer` ADD COLUMN `date` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -31,7 +38,7 @@ abstract class AppDatabase: RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build().also { instance = it }
             }
     }
