@@ -1,11 +1,13 @@
 package com.example.pam_lab.viewmodel
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pam_lab.database.AppDatabase
 import com.example.pam_lab.database.RouteTimer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +21,7 @@ import java.util.Locale
 class TimerViewModel(context: Context): ViewModel() {
     private val db = AppDatabase.getInstance(context)
     private val timerDao = db.routeTimerDao()
+    private val sharedPref: SharedPreferences = context.getSharedPreferences("timer_prefs", Context.MODE_PRIVATE)
 
     private val _timerState = MutableStateFlow(0)
     val timerState: StateFlow<Int> = _timerState.asStateFlow()
@@ -30,6 +33,43 @@ class TimerViewModel(context: Context): ViewModel() {
     val currentRouteName: StateFlow<String?> = _currentRouteName.asStateFlow()
 
     private var timerJob: kotlinx.coroutines.Job? = null
+
+    init {
+        restoreTimer()
+    }
+
+    private fun restoreTimer() {
+        val isRunning = sharedPref.getBoolean("isRunning", false)
+        val startTime = sharedPref.getLong("startTime", 0L)
+        val accumulatedTime = sharedPref.getInt("accumulatedTime", 0)
+        val routeName = sharedPref.getString("routeName", null)
+
+        if (routeName != null) {
+            _currentRouteName.value = routeName
+            if (isRunning && startTime > 0L) {
+                val elapsedSinceStart = ((System.currentTimeMillis() - startTime) / 1000).toInt()
+                _timerState.value = accumulatedTime + elapsedSinceStart
+                startTimer(routeName)
+            } else {
+                _timerState.value = accumulatedTime
+                _running.value = false
+            }
+        }
+    }
+
+    private fun saveTimerState() {
+        sharedPref.edit().apply {
+            putBoolean("isRunning", _running.value)
+            putInt("accumulatedTime", _timerState.value)
+            putString("routeName", _currentRouteName.value)
+            if (_running.value) {
+                putLong("startTime", System.currentTimeMillis())
+            } else {
+                putLong("startTime", 0L)
+            }
+            apply()
+        }
+    }
 
     // Observe all saved times for specific routes
     val allSavedTimes: StateFlow<List<RouteTimer>> = timerDao.getAllFlow()
@@ -47,10 +87,14 @@ class TimerViewModel(context: Context): ViewModel() {
         }
 
         _running.value = true
+        saveTimerState()
+        
         timerJob = viewModelScope.launch {
             while (_running.value) {
-                kotlinx.coroutines.delay(1000)
+                delay(1000)
                 _timerState.value++
+                // Opcjonalnie: zapisuj stan co jakiś czas (np. co 10s), 
+                // ale najważniejsze jest zapisanie przy pauzie/starcie.
             }
         }
     }
@@ -59,6 +103,7 @@ class TimerViewModel(context: Context): ViewModel() {
         _running.value = false
         timerJob?.cancel()
         timerJob = null
+        saveTimerState()
     }
 
     fun toggleTimer(routeName: String?) {
@@ -73,6 +118,7 @@ class TimerViewModel(context: Context): ViewModel() {
         stopTimer()
         _timerState.value = 0
         _currentRouteName.value = null
+        sharedPref.edit().clear().apply()
     }
     
     fun restartAndStart(routeName: String?) {
@@ -111,7 +157,6 @@ class TimerViewModel(context: Context): ViewModel() {
         
         if (routeName != null && time > 0) {
             viewModelScope.launch {
-                // Zapisujemy aktualny timestamp jako datę pokonania trasy
                 timerDao.insertTimer(
                     RouteTimer(
                         routeName = routeName, 

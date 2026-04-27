@@ -1,8 +1,12 @@
 package com.example.pam_lab
 
+import android.animation.ObjectAnimator
 import android.app.Activity
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
+import android.view.animation.AnticipateInterpolator
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
@@ -31,7 +35,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -85,6 +88,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -103,6 +107,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.animation.doOnEnd
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -121,15 +127,39 @@ import com.example.pam_lab.viewmodel.TimerViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val slideUp = ObjectAnimator.ofFloat(
+                splashScreenView.view,
+                View.TRANSLATION_Y,
+                0f,
+                -splashScreenView.view.height.toFloat()
+            )
+            slideUp.interpolator = AnticipateInterpolator()
+            slideUp.duration = 600L
+
+            slideUp.doOnEnd { splashScreenView.remove() }
+            slideUp.start()
+        }
+
         super.onCreate(savedInstanceState)
+        
+        val sharedPref = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        
         enableEdgeToEdge()
         setContent {
-            var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+            var isDarkTheme by rememberSaveable { 
+                mutableStateOf(sharedPref.getBoolean("isDarkTheme", false)) 
+            }
             
             Lab2Theme(darkTheme = isDarkTheme) {
                 Main(
                     isDarkTheme = isDarkTheme,
-                    onThemeToggle = { isDarkTheme = !isDarkTheme }
+                    onThemeToggle = { 
+                        isDarkTheme = !isDarkTheme
+                        sharedPref.edit().putBoolean("isDarkTheme", isDarkTheme).apply()
+                    }
                 )
             }
         }
@@ -222,7 +252,7 @@ fun AddRouteDialog(
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isBike by remember { mutableStateOf(false) }
-    var difficulty by remember { mutableStateOf(1) }
+    var difficulty by remember { mutableIntStateOf(1) }
     var length by remember { mutableStateOf("") }
     var duration by remember { mutableStateOf("") }
 

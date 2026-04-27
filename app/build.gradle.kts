@@ -58,6 +58,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-ktx:1.8.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
+    implementation(libs.androidx.core.splashscreen)
     ksp("androidx.room:room-compiler:2.8.4")
 
     testImplementation(libs.junit)
