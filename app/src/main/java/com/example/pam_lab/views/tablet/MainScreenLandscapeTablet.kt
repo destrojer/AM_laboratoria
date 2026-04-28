@@ -46,13 +46,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.pam_lab.database.Route
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
-import com.example.pam_lab.views.DetailContent
-import com.example.pam_lab.views.SearchBarComponent
-import com.example.pam_lab.views.TimerControls
+import com.example.pam_lab.views.viewElements.DetailContent
+import com.example.pam_lab.views.viewElements.SearchBarComponent
+import com.example.pam_lab.views.viewElements.TimerControls
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

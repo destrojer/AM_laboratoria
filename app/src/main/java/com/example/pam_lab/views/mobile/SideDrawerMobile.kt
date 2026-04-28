@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.pam_lab.viewmodel.RouteViewModel
-import com.example.pam_lab.views.AddRouteDialog
+import com.example.pam_lab.views.viewElements.AddRouteDialog
 
 
 @Composable

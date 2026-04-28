@@ -8,17 +8,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,23 +46,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.pam_lab.database.Route
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
-import com.example.pam_lab.views.DetailContent
-import com.example.pam_lab.views.SearchBarComponent
-import com.example.pam_lab.views.TimerControls
+import com.example.pam_lab.views.viewElements.SearchBarComponent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenTablet(
+    navController: NavController,
     routeViewModel: RouteViewModel,
     timerViewModel: TimerViewModel,
     isSearchActive: Boolean
 ) {
     val routes by routeViewModel.routes.collectAsState()
-    val selectedRoute by routeViewModel.selectedRoute.collectAsState()
     val isBiking by routeViewModel.bool.collectAsState()
     val savedTimes by timerViewModel.allSavedTimes.collectAsState()
 
@@ -77,7 +79,7 @@ fun MainScreenTablet(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = if (isBiking == true) "Trasy Rowerowe" else "Trasy Piesze",
+                            text = if (isBiking == true) "Eksploruj Trasy Rowerowe" else "Eksploruj Trasy Piesze",
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -87,150 +89,52 @@ fun MainScreenTablet(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = selectedRoute != null,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                TimerControls(name = selectedRoute?.name, timerViewModel = timerViewModel)
-            }
         }
     ) { innerPadding ->
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.surface)
         ) {
-            // LISTA TRAS
-            Column(
-                modifier = Modifier
-                    .weight(1.2f)
-                    .fillMaxHeight()
-                    .padding(start = 16.dp, end = 8.dp)
-            ) {
-                if (isSearchActive) {
+            if (isSearchActive) {
+                Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                     SearchBarComponent(routeViewModel)
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
+            }
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (routes.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "Brak tras.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2), // 2 kolumny dla Portrait Tablet
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (routes.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Brak tras spełniających kryteria.",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                     }
-                    
-                    items(routes) { route ->
-                        val routeTimes = savedTimes.filter { it.routeName == route.name }
-                        val bestTimeSeconds = routeTimes.minByOrNull { it.timeInSeconds }?.timeInSeconds
-                        val formattedBestTime = bestTimeSeconds?.let { timerViewModel.formatTime(it) }
-
-                        TabletRouteListItem(
-                            route = route,
-                            bestTime = formattedBestTime,
-                            isSelected = selectedRoute?.id == route.id,
-                            onClick = { routeViewModel.selectRoute(route) }
-                        )
-                    }
                 }
-            }
 
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.outlineVariant)
-            )
+                items(routes) { route ->
+                    val routeTimes = savedTimes.filter { it.routeName == route.name }
+                    val bestTimeSeconds = routeTimes.minByOrNull { it.timeInSeconds }?.timeInSeconds
+                    val formattedBestTime = bestTimeSeconds?.let { timerViewModel.formatTime(it) }
 
-            // SZCZEGÓŁY
-            Column(
-                modifier = Modifier
-                    .weight(2f)
-                    .fillMaxHeight()
-                    .padding(horizontal = 16.dp)
-            ) {
-                if (selectedRoute != null) {
-                    DetailContent(selectedRoute!!, timerViewModel)
-                } else {
-                    TabletEmptyState()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TabletRouteListItem(
-    route: Route,
-    bestTime: String?,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val (difficultyText, difficultyColor) = when(route.difficulty) {
-        1 -> "B. łatwa" to Color(0xFF4CAF50)
-        2 -> "Łatwa" to Color(0xFF2196F3)
-        3 -> "Średnia" to Color(0xFFFFA000)
-        4 -> "Trudna" to Color(0xFFF44336)
-        else -> "B. trudna" to Color.Black
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = route.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Timer, null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = "${route.duration} min", style = MaterialTheme.typography.bodySmall)
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(difficultyColor))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = difficultyText, style = MaterialTheme.typography.labelSmall)
-            }
-            
-            if (bestTime != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(14.dp), tint = Color(0xFFFFA000))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Rekord: $bestTime",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                    TabletGridItem(
+                        route = route,
+                        bestTime = formattedBestTime,
+                        onClick = {
+                            navController.navigate("detail/${route.name}")
+                        }
                     )
                 }
             }
@@ -239,19 +143,110 @@ fun TabletRouteListItem(
 }
 
 @Composable
-fun TabletEmptyState() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+fun TabletGridItem(
+    route: Route,
+    bestTime: String?,
+    onClick: () -> Unit
+) {
+    val (difficultyText, difficultyColor) = when(route.difficulty) {
+        1 -> "Bardzo łatwa" to Color(0xFF4CAF50)
+        2 -> "Łatwa" to Color(0xFF2196F3)
+        3 -> "Średnia" to Color(0xFFFFA000)
+        4 -> "Trudna" to Color(0xFFF44336)
+        else -> "Bardzo trudna" to Color.Black
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = route.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(difficultyColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = difficultyText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Row {
+                    InfoChip(icon = Icons.Default.Map, text = "${route.length} km")
+                    Spacer(modifier = Modifier.width(12.dp))
+                    InfoChip(icon = Icons.Default.Timer, text = "${route.duration} min")
+                }
+
+                if (bestTime != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.EmojiEvents, 
+                            null, 
+                            modifier = Modifier.size(18.dp), 
+                            tint = Color(0xFFFFA000)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = bestTime,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            imageVector = Icons.Default.Map,
+            imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(100.dp),
-            tint = MaterialTheme.colorScheme.outlineVariant
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.secondary
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Wybierz trasę z listy", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

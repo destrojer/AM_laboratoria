@@ -1,4 +1,4 @@
-package com.example.pam_lab.views
+package com.example.pam_lab.views.viewElements
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility

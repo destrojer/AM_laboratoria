@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -93,7 +90,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun Main(
     isDarkTheme: Boolean,
@@ -117,12 +113,11 @@ fun Main(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showDrawer = currentRoute != "viewType" && currentRoute != "start"
+    val showDrawer = currentRoute != "start"
 
-    val windowSizeClass = calculateWindowSizeClass(activity = activity)
-    val isTablet = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = configuration.smallestScreenWidthDp >= 600
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -149,125 +144,45 @@ fun Main(
                     composable("start") {
                         when {
                             isTablet && isLandscape -> {
-                                // Tablet Landscape
-                                StartScreenLandscapeTablet(
-                                    navController,
-                                    routeViewModel,
-                                    timerViewModel
-                                )
+                                StartScreenLandscapeTablet(navController, routeViewModel, timerViewModel)
                             }
-
                             isTablet && !isLandscape -> {
-                                // Tablet Portrait
                                 StartScreenTablet(navController, routeViewModel, timerViewModel)
                             }
-
                             !isTablet && isLandscape -> {
-                                // Phone Landscape
-                                StartScreenLandscapeMobile(
-                                    navController,
-                                    routeViewModel,
-                                    timerViewModel
-                                )
+                                StartScreenLandscapeMobile(navController, routeViewModel, timerViewModel)
                             }
-
                             else -> {
-                                // Phone Portrait
                                 StartScreenMobile(navController, routeViewModel, timerViewModel)
                             }
                         }
                     }
-//
-//                    // View type selection screen
-//                    composable("viewType") {
-//                        when {
-//                            isTablet && isLandscape -> {
-//                                // Tablet Landscape
-//                                MainScreenLandscapeTablet(routeViewModel, timerViewModel, isSearchActive)
-//                            }
-//                            isTablet && !isLandscape -> {
-//                                // Tablet Portrait
-//                                MainScreenTablet(routeViewModel, timerViewModel, isSearchActive)
-//                            }
-//                            !isTablet && isLandscape -> {
-//                                // Phone Landscape
-//                                StartScreenLandscapeMobile(navController, routeViewModel, timerViewModel)
-//                            }
-//                            else -> {
-//                                // Phone Portrait
-//                                StartScreenMobile(navController, routeViewModel, timerViewModel)
-//                            }
-//                        }
-//                    }
 
-                    // Main view with routes
+                    // Main view
                     composable("main") {
                         when {
                             isTablet && isLandscape -> {
-                                // Tablet Landscape
-                                MainScreenLandscapeTablet(
-                                    routeViewModel,
-                                    timerViewModel,
-                                    isSearchActive
-                                )
+                                MainScreenLandscapeTablet(routeViewModel, timerViewModel, isSearchActive)
                             }
-
                             isTablet && !isLandscape -> {
-                                // Tablet Portrait
-                                MainScreenTablet(routeViewModel, timerViewModel, isSearchActive)
+                                MainScreenTablet(navController, routeViewModel, timerViewModel, isSearchActive)
                             }
-
                             !isTablet && isLandscape -> {
-                                // Phone Landscape
-                                MainScreenLandscapeMobile(
-                                    navController,
-                                    routeViewModel,
-                                    timerViewModel,
-                                    isSearchActive
-                                )
+                                MainScreenLandscapeMobile(navController, routeViewModel, timerViewModel, isSearchActive)
                             }
-
                             else -> {
-                                // Phone Portrait
-                                MainScreen(
-                                    navController,
-                                    routeViewModel,
-                                    timerViewModel,
-                                    isSearchActive
-                                )
+                                MainScreen(navController, routeViewModel, timerViewModel, isSearchActive)
                             }
                         }
                     }
 
-                    // Detail view with route info and timer
+                    // Detail view
                     composable(
                         route = "detail/{name}",
-                        arguments = listOf(
-                            navArgument("name") { type = NavType.StringType }
-                        )
+                        arguments = listOf(navArgument("name") { type = NavType.StringType })
                     ) { backstackEntry ->
                         val name = backstackEntry.arguments?.getString("name")
-                        when {
-                            isTablet && isLandscape -> {
-                                // Tablet Landscape
-                                DetailScreen(navController, name, routeViewModel, timerViewModel)
-                            }
-
-                            isTablet && !isLandscape -> {
-                                // Tablet Portrait
-                                DetailScreen(navController, name, routeViewModel, timerViewModel)
-                            }
-
-                            !isTablet && isLandscape -> {
-                                // Phone Landscape
-                                DetailScreen(navController, name, routeViewModel, timerViewModel)
-                            }
-
-                            else -> {
-                                // Phone Portrait
-                                DetailScreen(navController, name, routeViewModel, timerViewModel)
-                            }
-                        }
+                        DetailScreen(navController, name, routeViewModel, timerViewModel)
                     }
                 }
             }

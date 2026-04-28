@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
-import com.example.pam_lab.views.DetailContent
-import com.example.pam_lab.views.TimerControls
+import com.example.pam_lab.views.viewElements.DetailContent
+import com.example.pam_lab.views.viewElements.TimerControls
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
