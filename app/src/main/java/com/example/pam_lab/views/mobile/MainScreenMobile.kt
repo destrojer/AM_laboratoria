@@ -85,7 +85,7 @@ fun MainScreen(
                 }
             }
 
-            // Panel filtrów pod wyszukiwarką, nad listą tras
+            // Panel filtrów
             AnimatedVisibility(visible = isFilterVisible) {
                 FilterPanelComponent(routeViewModel)
             }
@@ -151,7 +151,7 @@ fun MobileRouteCard(
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant // Usunięto alpha dla jednolitości koloru
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
