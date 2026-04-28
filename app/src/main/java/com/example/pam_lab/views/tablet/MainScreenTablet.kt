@@ -77,7 +77,7 @@ fun MainScreenTablet(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.background)
         ) {
             if (isSearchActive) {
                 Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
@@ -85,7 +85,7 @@ fun MainScreenTablet(
                 }
             }
 
-            // Panel filtrów dla Tabletu w pionie
+            // Panel filtrów dla Tabletu (Jednolity kolor)
             AnimatedVisibility(visible = isFilterVisible) {
                 Box(modifier = Modifier.padding(horizontal = 24.dp)) {
                     FilterPanelComponent(routeViewModel)
@@ -152,7 +152,7 @@ fun TabletGridItem(
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant // Usunięto alpha
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
