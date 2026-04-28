@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
-import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
@@ -19,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -38,6 +38,7 @@ import androidx.navigation.navArgument
 import com.example.pam_lab.ui.theme.Lab2Theme
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
+import com.example.pam_lab.views.SplashAnimationScreen
 import com.example.pam_lab.views.mobile.DetailScreen
 import com.example.pam_lab.views.viewElements.LeftSideDrawer
 import com.example.pam_lab.views.mobile.MainScreen
@@ -52,19 +53,24 @@ import com.example.pam_lab.views.tablet.StartScreenTablet
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
-        
-        splashScreen.setOnExitAnimationListener { splashScreenView ->
-            val slideUp = ObjectAnimator.ofFloat(
-                splashScreenView.view,
-                View.TRANSLATION_Y,
-                0f,
-                -splashScreenView.view.height.toFloat()
-            )
-            slideUp.interpolator = AnticipateInterpolator()
-            slideUp.duration = 600L
 
-            slideUp.doOnEnd { splashScreenView.remove() }
-            slideUp.start()
+        // Definiujemy customową animację wyjścia dla systemowego Splash Screena
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val scaleX = ObjectAnimator.ofFloat(splashScreenView.view, View.SCALE_X, 1f, 1.5f)
+            val scaleY = ObjectAnimator.ofFloat(splashScreenView.view, View.SCALE_Y, 1f, 1.5f)
+            val alpha = ObjectAnimator.ofFloat(splashScreenView.view, View.ALPHA, 1f, 0f)
+
+            scaleX.duration = 400L
+            scaleY.duration = 400L
+            alpha.duration = 400L
+
+            scaleX.start()
+            scaleY.start()
+            alpha.start()
+
+            alpha.doOnEnd {
+                splashScreenView.remove()
+            }
         }
 
         super.onCreate(savedInstanceState)
@@ -77,14 +83,22 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(sharedPref.getBoolean("isDarkTheme", false)) 
             }
             
+            // Zmienna showSplash zapamiętuje, czy animacja została już wyświetlona w bieżącej sesji.
+            // Dzięki rememberSaveable animacja nie powtórzy się przy obrocie ekranu.
+            var showSplash by rememberSaveable { mutableStateOf(true) }
+
             Lab2Theme(darkTheme = isDarkTheme) {
-                Main(
-                    isDarkTheme = isDarkTheme,
-                    onThemeToggle = { 
-                        isDarkTheme = !isDarkTheme
-                        sharedPref.edit().putBoolean("isDarkTheme", isDarkTheme).apply()
-                    }
-                )
+                if (showSplash) {
+                    SplashAnimationScreen(onAnimationFinished = { showSplash = false })
+                } else {
+                    Main(
+                        isDarkTheme = isDarkTheme,
+                        onThemeToggle = { 
+                            isDarkTheme = !isDarkTheme
+                            sharedPref.edit().putBoolean("isDarkTheme", isDarkTheme).apply()
+                        }
+                    )
+                }
             }
         }
     }
@@ -137,46 +151,26 @@ fun Main(
                 )
             }
 
-            //Navigation to other views
             Box(modifier = Modifier.weight(1f)) {
                 NavHost(navController = navController, startDestination = "start") {
-                    // Start screen
                     composable("start") {
                         when {
-                            isTablet && isLandscape -> {
-                                StartScreenLandscapeTablet(navController, routeViewModel, timerViewModel)
-                            }
-                            isTablet && !isLandscape -> {
-                                StartScreenTablet(navController, routeViewModel, timerViewModel)
-                            }
-                            !isTablet && isLandscape -> {
-                                StartScreenLandscapeMobile(navController, routeViewModel, timerViewModel)
-                            }
-                            else -> {
-                                StartScreenMobile(navController, routeViewModel, timerViewModel)
-                            }
+                            isTablet && isLandscape -> StartScreenLandscapeTablet(navController, routeViewModel, timerViewModel)
+                            isTablet && !isLandscape -> StartScreenTablet(navController, routeViewModel, timerViewModel)
+                            !isTablet && isLandscape -> StartScreenLandscapeMobile(navController, routeViewModel, timerViewModel)
+                            else -> StartScreenMobile(navController, routeViewModel, timerViewModel)
                         }
                     }
 
-                    // Main view
                     composable("main") {
                         when {
-                            isTablet && isLandscape -> {
-                                MainScreenLandscapeTablet(routeViewModel, timerViewModel, isSearchActive)
-                            }
-                            isTablet && !isLandscape -> {
-                                MainScreenTablet(navController, routeViewModel, timerViewModel, isSearchActive)
-                            }
-                            !isTablet && isLandscape -> {
-                                MainScreenLandscapeMobile(navController, routeViewModel, timerViewModel, isSearchActive)
-                            }
-                            else -> {
-                                MainScreen(navController, routeViewModel, timerViewModel, isSearchActive)
-                            }
+                            isTablet && isLandscape -> MainScreenLandscapeTablet(routeViewModel, timerViewModel, isSearchActive)
+                            isTablet && !isLandscape -> MainScreenTablet(navController, routeViewModel, timerViewModel, isSearchActive)
+                            !isTablet && isLandscape -> MainScreenLandscapeMobile(navController, routeViewModel, timerViewModel, isSearchActive)
+                            else -> MainScreen(navController, routeViewModel, timerViewModel, isSearchActive)
                         }
                     }
 
-                    // Detail view
                     composable(
                         route = "detail/{name}",
                         arguments = listOf(navArgument("name") { type = NavType.StringType })
