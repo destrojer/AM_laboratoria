@@ -1,17 +1,25 @@
 package com.example.pam_lab.views.viewElements
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -31,9 +39,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.pam_lab.database.Route
 
 
@@ -48,17 +58,26 @@ fun AddRouteDialog(
     var difficulty by remember { mutableIntStateOf(1) }
     var length by remember { mutableStateOf("") }
     var duration by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
 
     val isFormValid = name.isNotBlank() &&
             (length.toDoubleOrNull() ?: 0.0) > 0.0 &&
             (duration.toIntOrNull() ?: 0) > 0
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Dodaj własną trasę") },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedTextField(
@@ -73,6 +92,38 @@ fun AddRouteDialog(
                     label = { Text("Opis") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Sekcja zdjęcia
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Zdjęcie trasy:", fontWeight = FontWeight.SemiBold)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { launcher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (imageUri != null) {
+                            AsyncImage(
+                                model = imageUri,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.AddAPhoto,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text("Kliknij, aby dodać zdjęcie", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -174,7 +225,8 @@ fun AddRouteDialog(
                         type = if (isBike) "rowerowa" else "piesza",
                         difficulty = difficulty,
                         length = length.toDoubleOrNull() ?: 0.0,
-                        duration = duration.toIntOrNull() ?: 0
+                        duration = duration.toIntOrNull() ?: 0,
+                        imageUri = imageUri?.toString()
                     ))
                 }
             ) { Text("Zapisz") }

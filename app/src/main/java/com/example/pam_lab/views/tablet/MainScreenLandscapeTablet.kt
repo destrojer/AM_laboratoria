@@ -25,8 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.pam_lab.database.Route
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
@@ -103,7 +105,6 @@ fun MainScreenLandscapeTablet(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Panel filtrów przeniesiony do wewnątrz LazyColumn, aby przewijał się z listą
                     item {
                         AnimatedVisibility(visible = isFilterVisible) {
                             Column {
@@ -195,90 +196,93 @@ fun RouteListItem(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = route.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // MINIATURKA ZDJĘCIA
+            AsyncImage(
+                model = route.imageUri ?: com.example.pam_lab.R.drawable.app_icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surface),
+                contentScale = ContentScale.Crop
             )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Dystans
-                Icon(
-                    imageVector = Icons.Default.Map,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(4.dp))
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${route.length} km",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = route.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 
-                // Czas
-                Icon(
-                    imageVector = Icons.Default.Timer,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${route.duration} min",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                // Trudność (obok czasu)
-                Icon(
-                    imageVector = Icons.Default.SignalCellularAlt,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(difficultyColor)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = difficultyText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (bestTime != null) {
-                Spacer(modifier = Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.EmojiEvents,
-                        contentDescription = "Najlepszy czas",
-                        modifier = Modifier.size(16.dp),
-                        tint = Color(0xFFFFA000)
+                        imageVector = Icons.Default.Map,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Best: $bestTime",
+                        text = "${route.length} km",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${route.duration} min",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                if (bestTime != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = "Najlepszy czas",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFFFFA000)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Best: $bestTime",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
+
+            // Kropka trudności
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(difficultyColor)
+                    .align(Alignment.Top)
+                    .padding(top = 4.dp)
+            )
         }
     }
 }

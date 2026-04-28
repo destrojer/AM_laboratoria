@@ -25,11 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.pam_lab.database.Route
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
@@ -97,7 +99,6 @@ fun MainScreenLandscapeMobile(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Panel filtrów jako element siatki (widoczny tylko gdy aktywny, zajmuje całą szerokość)
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     AnimatedVisibility(visible = isFilterVisible) {
                         FilterPanelComponent(routeViewModel)
@@ -143,72 +144,55 @@ fun CompactLandscapeCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Text(
-                text = route.name,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // ZDJĘCIE TRASY (MINIATURKA)
+            AsyncImage(
+                model = route.imageUri ?: com.example.pam_lab.R.drawable.app_icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surface),
+                contentScale = ContentScale.Crop
             )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(difficultyColor)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = difficultyText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp
+                    text = route.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Map, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(text = "${route.length}km", style = MaterialTheme.typography.labelSmall)
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Icon(Icons.Default.Timer, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(text = "${route.duration}m", style = MaterialTheme.typography.labelSmall)
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(difficultyColor))
                 }
 
                 if (bestTime != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.EmojiEvents,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color(0xFFFFA000)
-                        )
+                        Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(12.dp), tint = Color(0xFFFFA000))
                         Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = bestTime,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 10.sp
-                        )
+                        Text(text = bestTime, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
                 }
             }
