@@ -1,38 +1,17 @@
-package com.example.pam_lab.views.mobile
+package com.example.pam_lab.views.viewElements
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.AddLocationAlt
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.pam_lab.viewmodel.RouteViewModel
-import com.example.pam_lab.views.viewElements.AddRouteDialog
-
 
 @Composable
 fun LeftSideDrawer(
@@ -57,8 +34,9 @@ fun LeftSideDrawer(
     isSearchActive: Boolean,
     onSearchToggle: () -> Unit
 ) {
-    val drawerWidth = if (isExpanded) 150.dp else 48.dp
+    val drawerWidth = if (isExpanded) 240.dp else 56.dp
     val selectedType by routeViewModel.bool.collectAsState()
+    val isFilterVisible by routeViewModel.isFilterVisible.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (showAddDialog) {
@@ -81,7 +59,8 @@ fun LeftSideDrawer(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 12.dp),
+                .padding(vertical = 12.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.Start
         ) {
             //Drawer toggle
@@ -123,6 +102,8 @@ fun LeftSideDrawer(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             //Add location
             DrawerItem(
@@ -141,17 +122,32 @@ fun LeftSideDrawer(
                 onClick = onSearchToggle
             )
 
-            //Theme toggle
+            // PRZYCISK FILTRU
+            DrawerItem(
+                icon = Icons.Default.FilterList,
+                label = "Filtry",
+                isExpanded = isExpanded,
+                selected = isFilterVisible,
+                onClick = { routeViewModel.toggleFilterVisibility() }
+            )
+
+            // LINIA I ZMIANA MOTYWU (Przeniesione wyżej)
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
             DrawerItem(
                 icon = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
                 label = if (isDarkTheme) "Jasny" else "Ciemny",
                 isExpanded = isExpanded,
                 onClick = onThemeToggle
             )
+
+            // Elastyczny odstęp na dole
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
-
 
 @Composable
 fun DrawerItem(

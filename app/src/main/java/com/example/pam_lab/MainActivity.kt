@@ -39,7 +39,7 @@ import com.example.pam_lab.ui.theme.Lab2Theme
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
 import com.example.pam_lab.views.mobile.DetailScreen
-import com.example.pam_lab.views.mobile.LeftSideDrawer
+import com.example.pam_lab.views.viewElements.LeftSideDrawer
 import com.example.pam_lab.views.mobile.MainScreen
 import com.example.pam_lab.views.mobile.MainScreenLandscapeMobile
 import com.example.pam_lab.views.mobile.StartScreenLandscapeMobile

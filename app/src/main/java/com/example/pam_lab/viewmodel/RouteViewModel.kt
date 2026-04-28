@@ -23,14 +23,48 @@ class RouteViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    // Filtry
+    private val _filterDifficulty = MutableStateFlow<Int?>(null)
+    val filterDifficulty = _filterDifficulty.asStateFlow()
+
+    private val _filterMaxTime = MutableStateFlow<Int?>(null)
+    val filterMaxTime = _filterMaxTime.asStateFlow()
+
+    private val _filterMaxDistance = MutableStateFlow<Double?>(null)
+    val filterMaxDistance = _filterMaxDistance.asStateFlow()
+
+    // Widoczność panelu filtrów
+    private val _isFilterVisible = MutableStateFlow(false)
+    val isFilterVisible = _isFilterVisible.asStateFlow()
+
     private val allRoutes = routeDao.getAllFlow()
 
-    val routes: StateFlow<List<Route>> = combine(allRoutes, _isBike, _searchQuery) { routes, isBike, query ->
+    val routes: StateFlow<List<Route>> = combine(
+        allRoutes, 
+        _isBike, 
+        _searchQuery, 
+        _filterDifficulty, 
+        _filterMaxTime, 
+        _filterMaxDistance
+    ) { args: Array<Any?> ->
+        val routesList = args[0] as List<Route>
+        val isBike = args[1] as? Boolean
+        val query = args[2] as String
+        val difficulty = args[3] as? Int
+        val maxTime = args[4] as? Int
+        val maxDistance = args[5] as? Double
+
         if (isBike == null) emptyList()
         else {
             val type = if (isBike) "rowerowa" else "piesza"
-            routes.filter { 
-                it.type == type && (query.isEmpty() || it.name.contains(query, ignoreCase = true))
+            routesList.filter { route ->
+                val matchesType = route.type == type
+                val matchesQuery = query.isEmpty() || route.name.contains(query, ignoreCase = true)
+                val matchesDifficulty = difficulty == null || route.difficulty == difficulty
+                val matchesTime = maxTime == null || route.duration <= maxTime
+                val matchesDistance = maxDistance == null || route.length <= maxDistance
+                
+                matchesType && matchesQuery && matchesDifficulty && matchesTime && matchesDistance
             }
         }
     }.stateIn(
@@ -108,10 +142,34 @@ class RouteViewModel(application: Application) : AndroidViewModel(application) {
     fun setRoute(newBool: Boolean) {
         _isBike.value = newBool
         _selectedRoute.value = null
+        clearFilters()
     }
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun setDifficultyFilter(difficulty: Int?) {
+        _filterDifficulty.value = difficulty
+    }
+
+    fun setMaxTimeFilter(time: Int?) {
+        _filterMaxTime.value = time
+    }
+
+    fun setMaxDistanceFilter(distance: Double?) {
+        _filterMaxDistance.value = distance
+    }
+
+    fun toggleFilterVisibility() {
+        _isFilterVisible.value = !_isFilterVisible.value
+    }
+
+    fun clearFilters() {
+        _filterDifficulty.value = null
+        _filterMaxTime.value = null
+        _filterMaxDistance.value = null
+        _searchQuery.value = ""
     }
 
     fun selectRoute(route: Route?) {

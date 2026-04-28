@@ -50,6 +50,7 @@ import com.example.pam_lab.database.Route
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
 import com.example.pam_lab.views.viewElements.DetailContent
+import com.example.pam_lab.views.viewElements.FilterPanelComponent
 import com.example.pam_lab.views.viewElements.SearchBarComponent
 import com.example.pam_lab.views.viewElements.TimerControls
 
@@ -63,6 +64,7 @@ fun MainScreenLandscapeTablet(
     val routes by routeViewModel.routes.collectAsState()
     val selectedRoute by routeViewModel.selectedRoute.collectAsState()
     val isBiking by routeViewModel.bool.collectAsState()
+    val isFilterVisible by routeViewModel.isFilterVisible.collectAsState()
     val savedTimes by timerViewModel.allSavedTimes.collectAsState()
 
     Scaffold(
@@ -116,6 +118,12 @@ fun MainScreenLandscapeTablet(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
+                // Panel filtrów dla Tabletu Landscape
+                AnimatedVisibility(visible = isFilterVisible) {
+                    FilterPanelComponent(routeViewModel)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -124,7 +132,7 @@ fun MainScreenLandscapeTablet(
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = "Brak tras w tej kategorii.",
+                                    text = "Brak tras spełniających kryteria.",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
