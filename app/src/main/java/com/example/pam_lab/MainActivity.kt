@@ -101,6 +101,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -124,6 +125,7 @@ import com.example.pam_lab.database.RouteTimer
 import com.example.pam_lab.ui.theme.Lab2Theme
 import com.example.pam_lab.viewmodel.RouteViewModel
 import com.example.pam_lab.viewmodel.TimerViewModel
+import android.content.res.Configuration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -192,6 +194,11 @@ fun Main(
     val currentRoute = navBackStackEntry?.destination?.route
     val showDrawer = currentRoute != "viewType" && currentRoute != "start"
 
+    val windowSizeClass = calculateWindowSizeClass(activity = activity)
+    val isTablet = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -213,21 +220,23 @@ fun Main(
             Box(modifier = Modifier.weight(1f)) {
                 NavHost(navController = navController, startDestination = "viewType") {
                     composable("viewType") {
-                        val windowSizeClass = calculateWindowSizeClass(activity = activity)
-                        when (windowSizeClass.widthSizeClass) {
-                            WindowWidthSizeClass.Compact -> {
-                                StartScreenMobile(navController, routeViewModel, timerViewModel)
-                            }
-                            else -> {
-                                MainScreenTablet(routeViewModel, timerViewModel, isSearchActive)
-                            }
+                        if (isTablet) {
+                            MainScreenTablet(routeViewModel, timerViewModel, isSearchActive)
+                        } else {
+                            StartScreenMobile(navController, routeViewModel, timerViewModel)
                         }
                     }
                     composable("start") {
                         StartScreenMobile(navController, routeViewModel, timerViewModel)
                     }
                     composable("main") {
-                        MainScreen(navController, routeViewModel, timerViewModel, isSearchActive)
+                        if (isLandscape && !isTablet) {
+                            MainScreenLandscapeMobile(navController, routeViewModel, timerViewModel, isSearchActive)
+                        } else if (isTablet) {
+                            MainScreenTablet(routeViewModel, timerViewModel, isSearchActive)
+                        } else {
+                            MainScreen(navController, routeViewModel, timerViewModel, isSearchActive)
+                        }
                     }
                     composable(
                         route = "detail/{name}",
@@ -238,6 +247,39 @@ fun Main(
                         val name = backstackEntry.arguments?.getString("name")
                         DetailScreen(navController, name, routeViewModel, timerViewModel)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MainScreenLandscapeMobile(
+    navController: NavController,
+    routeViewModel: RouteViewModel,
+    timerViewModel: TimerViewModel,
+    isSearchActive: Boolean
+) {
+    val routes by routeViewModel.routes.collectAsState()
+    
+    Row(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.weight(1f)) {
+            if (isSearchActive) SearchBarComponent(routeViewModel)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(routes) { item ->
+                    Text(
+                        text = item.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val encodedName = Uri.encode(item.name)
+                                navController.navigate("detail/$encodedName")
+                            }
+                            .padding(16.dp)
+                    )
                 }
             }
         }
