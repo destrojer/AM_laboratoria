@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -89,11 +90,6 @@ fun MainScreenLandscapeMobile(
                 }
             }
 
-            // Dodano panel filtrów dla trybu Landscape Mobile
-            AnimatedVisibility(visible = isFilterVisible) {
-                FilterPanelComponent(routeViewModel)
-            }
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
@@ -101,6 +97,13 @@ fun MainScreenLandscapeMobile(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Panel filtrów jako element siatki (widoczny tylko gdy aktywny, zajmuje całą szerokość)
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    AnimatedVisibility(visible = isFilterVisible) {
+                        FilterPanelComponent(routeViewModel)
+                    }
+                }
+
                 items(routes) { route ->
                     val routeTimes = savedTimes.filter { it.routeName == route.name }
                     val bestTimeSeconds = routeTimes.minByOrNull { it.timeInSeconds }?.timeInSeconds
@@ -115,7 +118,7 @@ fun MainScreenLandscapeMobile(
                         }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item(span = { GridItemSpan(maxLineSpan) }) { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }
@@ -141,7 +144,7 @@ fun CompactLandscapeCard(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {

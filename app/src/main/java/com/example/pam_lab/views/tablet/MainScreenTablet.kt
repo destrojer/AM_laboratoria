@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -85,13 +86,6 @@ fun MainScreenTablet(
                 }
             }
 
-            // Panel filtrów dla Tabletu (Jednolity kolor)
-            AnimatedVisibility(visible = isFilterVisible) {
-                Box(modifier = Modifier.padding(horizontal = 24.dp)) {
-                    FilterPanelComponent(routeViewModel)
-                }
-            }
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(16.dp),
@@ -99,8 +93,17 @@ fun MainScreenTablet(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
+                // Panel filtrów przewijany razem z siatką tras
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    AnimatedVisibility(visible = isFilterVisible) {
+                        Box(modifier = Modifier.padding(bottom = 16.dp)) {
+                            FilterPanelComponent(routeViewModel)
+                        }
+                    }
+                }
+
                 if (routes.isEmpty()) {
-                    item {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(32.dp),
                             contentAlignment = Alignment.Center
@@ -152,7 +155,7 @@ fun TabletGridItem(
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // Usunięto alpha
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {

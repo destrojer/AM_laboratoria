@@ -85,16 +85,18 @@ fun MainScreen(
                 }
             }
 
-            // Panel filtrów
-            AnimatedVisibility(visible = isFilterVisible) {
-                FilterPanelComponent(routeViewModel)
-            }
-
+            // Przeniesiono panel filtrów do wnętrza LazyColumn jako osobny element, aby umożliwić jego przewijanie razem z listą
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    AnimatedVisibility(visible = isFilterVisible) {
+                        FilterPanelComponent(routeViewModel)
+                    }
+                }
+
                 if (routes.isEmpty()) {
                     item {
                         Box(
@@ -151,7 +153,7 @@ fun MobileRouteCard(
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // Usunięto alpha dla jednolitości koloru
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -223,7 +225,7 @@ fun MobileRouteCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.primaryContainer,
                             RoundedCornerShape(8.dp)
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
