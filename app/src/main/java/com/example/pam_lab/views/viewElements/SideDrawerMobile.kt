@@ -71,7 +71,7 @@ fun LeftSideDrawer(
                 onClick = onToggleExpand
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             //Walk routes
             DrawerItem(
@@ -87,6 +87,8 @@ fun LeftSideDrawer(
                 }
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
             //Bike routes
             DrawerItem(
                 icon = Icons.AutoMirrored.Filled.DirectionsBike,
@@ -101,9 +103,14 @@ fun LeftSideDrawer(
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(28.dp))
+            // Zmieniono kolor na 'outline', który jest bardziej widoczny w Dark Mode
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline
+            )
+            Spacer(modifier = Modifier.height(28.dp))
 
             //Add location
             DrawerItem(
@@ -112,6 +119,8 @@ fun LeftSideDrawer(
                 isExpanded = isExpanded,
                 onClick = { showAddDialog = true }
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             //Search toggle
             DrawerItem(
@@ -122,6 +131,8 @@ fun LeftSideDrawer(
                 onClick = onSearchToggle
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
             // PRZYCISK FILTRU
             DrawerItem(
                 icon = Icons.Default.FilterList,
@@ -131,10 +142,14 @@ fun LeftSideDrawer(
                 onClick = { routeViewModel.toggleFilterVisibility() }
             )
 
-            // LINIA I ZMIANA MOTYWU (Przeniesione wyżej)
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(28.dp))
+            // Druga linia z poprawioną widocznością
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline
+            )
+            Spacer(modifier = Modifier.height(28.dp))
 
             DrawerItem(
                 icon = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
@@ -143,7 +158,6 @@ fun LeftSideDrawer(
                 onClick = onThemeToggle
             )
 
-            // Elastyczny odstęp na dole
             Spacer(modifier = Modifier.weight(1f))
         }
     }
@@ -160,11 +174,11 @@ fun DrawerItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .padding(horizontal = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
     ) {
@@ -175,7 +189,7 @@ fun DrawerItem(
             tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (isExpanded) {
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
