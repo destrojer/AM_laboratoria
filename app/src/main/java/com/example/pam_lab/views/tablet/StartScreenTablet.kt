@@ -46,7 +46,6 @@ fun StartScreenTablet(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Centralne Logo (zoom i centrowanie)
             Surface(
                 modifier = Modifier.size(240.dp),
                 shape = CircleShape,
@@ -75,12 +74,12 @@ fun StartScreenTablet(
             
             Spacer(modifier = Modifier.height(80.dp))
 
-            // Układ kolumnowy dla kart (lepiej wykorzystuje szerokość w pionie)
             Column(
                 modifier = Modifier.widthIn(max = 700.dp),
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {
-                TabletCategoryCard(
+                // Użyto unikalnej nazwy TabletCategoryCardPortrait
+                TabletCategoryCardPortrait(
                     title = "Pieszo",
                     subtitle = "Górskie szlaki i spokojne spacery",
                     icon = Icons.AutoMirrored.Filled.DirectionsWalk,
@@ -91,7 +90,7 @@ fun StartScreenTablet(
                     }
                 )
 
-                TabletCategoryCard(
+                TabletCategoryCardPortrait(
                     title = "Rowerem",
                     subtitle = "Trasy MTB, szosowe i wycieczki krajoznawcze",
                     icon = Icons.AutoMirrored.Filled.DirectionsBike,
@@ -107,7 +106,7 @@ fun StartScreenTablet(
 }
 
 @Composable
-fun TabletCategoryCard(
+private fun TabletCategoryCardPortrait(
     title: String,
     subtitle: String,
     icon: ImageVector,
@@ -127,7 +126,6 @@ fun TabletCategoryCard(
                 .fillMaxSize()
                 .background(Brush.linearGradient(gradient))
         ) {
-            // Ikona w tle - po prawej stronie
             Icon(
                 imageVector = icon,
                 contentDescription = null,
